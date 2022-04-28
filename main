@@ -1,0 +1,133 @@
+function got(pos)
+    active = true
+    if not game.Workspace.HOLE:FindFirstChild("HoleTPEntrance") then
+        repeat
+            local prevPos = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame
+            game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(1304, 96, -525)
+            wait()
+            game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = prevPos
+            wait(1)
+        until game.Workspace.HOLE:FindFirstChild("HoleTPEntrance")
+    end
+
+    if (game.Players.LocalPlayer.Character.HumanoidRootPart.Position - pos).magnitude < 200 then
+        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(pos)
+        wait(.3)
+        active = false
+    else
+        local hole = game.Workspace.HOLE.HoleTPEntrance
+        local oPos = hole.Position
+        local oSize = hole.Size
+
+        hole.Size = Vector3.new(1, 1, 1)
+        hole.Transparency = 1
+        hole.CFrame = game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame
+        repeat
+            hole.Position = game.Players.LocalPlayer.Character.HumanoidRootPart.Position
+            wait()
+        until (hole.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).magnitude < 10
+        hole.Position = oPos
+        hole.Size = oSize
+        repeat
+            wait()
+        until (game.Players.LocalPlayer.Character.HumanoidRootPart.Position - Vector3.new(430, 441, 102)).magnitude < 10
+        for i = 1, 4 do
+            game.Players.LocalPlayer.Character.HumanoidRootPart.Anchored = true
+            game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(pos)
+            wait(.1)
+        end
+        wait(.1)
+        game.Players.LocalPlayer.Character.HumanoidRootPart.Anchored = false
+        active = false
+    end
+end
+
+local Teleports = {
+    --add your teleports here
+    ["Vhitmire's Mystery Traveling Store"] = shop["Vhitmire's Mystery Traveling Store"].ShopBrick.Position,
+    ["Stick Stuff"] = shop["Stick Stuff"].ShopBrick.Position,
+    ["Junkamn's Junk"] = shop["Junkman's Junk"].ShopBrick.Position,
+    ["Burried Treasures"] = shop["Buried Treasures"].ShopBrick.Position,
+    ["Sim's Seed Supply"] = shop["Sim's Seed Supply"].ShopBrick.Position,
+    ["Green Golem's Goods"] = shop["Green Golem's Goods"].ShopBrick.Position,
+    ["The Eye's Wares"] = shop["The Eye's Wares"].ShopBrick.Position,
+    ["Sellers Two"] = shop["SellersTwo"].ShopBrick.Position,
+    ["Enchanted Jewels"] = shop["Enchanted Jewels"].ShopBrick.Position,
+    ["Otherworld Armory"] = game:GetService("Workspace").PassiveNPCs["NPC_NightmareFragment"].Clothing.NightmareFragment.Body.Position,
+    ["Magical Merchandise"] = shop["Magical Merchandise"].ShopBrick.Position,
+    ["Enchanted Imports"] = shop["Enchanted Imports"].ShopBrick.Position,
+    ["Jack's Hunting Gear"] = shop["Jack's Hunting Gear"].ShopBrick.Position,
+    ["Ollie's This 'n That"] = shop["Ollie's This 'n That"].ShopBrick.Position,
+    ["Toad Tom's Cafeteria"] = shop["Toad Tom's Cafeteria"].ShopBrick.Position,
+    ["Lakeside Tackle"] = shop["Lakeside Tackle"].ShopBrick.Position,
+    ["Wonald Izzi's Cliffside Cart"] = shop["Wonald Izzi's Cliffside Cart"].ShopBrick.Position,
+    ["Red Ogre Kitchen"] = shop["Red Ogre Kitchen"].ShopBrick.Position,
+    ["Seer's Ornamentations"] = shop["Seer's Ornamentations"].ShopBrick.Position,
+    ["Antonius's Armor Reserve"] = shop["Antonius's Armor Reserve"].ShopBrick.Position,
+    ["Clothing Botique"] = shop["Clothing Botique"].ShopBrick.Position,
+    ["Gary's Guns"] = shop["Gary's Guns"].ShopBrick.Position,
+    ["Luhr's Tackle"] = shop["Luhr's Tackle"].ShopBrick.Position,
+    ["Benny's Mining Supply"] = shop["Benny's Mining Supply"].ShopBrick.Position,
+    ["George's Chicken"] = shop["George's Chicken"].ShopBrick.Position,
+    ["Hedge Knight's Tent"] = shop["Hedge Knight's Tent"].ShopBrick.Position,
+    ["Sellers"] = shop["Sellers"].ShopBrick.Position,
+    ["Smith's Swords"] = shop["Smith's Swords"].ShopBrick.Position,
+    ["Strangeman's Domain"] = shop["Strangeman's Domain"].ShopBrick.Position,
+    ["The Gnome's Reserve"] = shop["The Gnome's Reserve"].ShopBrick.Position
+    --the gold coin
+    --supreme deals
+    --rising waters
+    --frog Goods
+    --construct
+    --no legs
+}
+
+local Teleports2 = {
+    [""] = game:GetService("Workspace").PassiveNPCs["NPC_SpiritOfCommerce"].Clothing.SpiritOfCommerceModel.GhostPart
+}
+
+local tpArray = {} --we are making this so we can use it later on the dropdown
+for i, v in next, Teleports do
+    tpArray[#tpArray + 1] = i
+end
+local OrionLib = loadstring(game:HttpGet(("https://raw.githubusercontent.com/shlexware/Orion/main/source")))()
+local Window = OrionLib:MakeWindow({Name = "Fantastic Frontier", SaveConfig = true, ConfigFolder = "OrionTest"})
+OrionLib:MakeNotification(
+    {
+        Name = "Starting up.",
+        Content = "Wait a few seconds before the gui loads.",
+        Image = "rbxassetid://4483345998",
+        Time = 3
+    }
+)
+
+local Tab =
+    Window:MakeTab(
+    {
+        Name = "Teleports",
+        Icon = "rbxassetid://4483345998",
+        PremiumOnly = false
+    }
+)
+
+Tab:AddDropdown(
+    {
+        Name = "Shop Teleports",
+        Default = "1",
+        Options = tpArray,
+        Callback = function(a)
+            got(Teleports[a])
+        end
+    }
+)
+
+Tab:AddDropdown(
+    {
+        Name = "Area Teleports",
+        Default = "1",
+        Options = tpArray,
+        Callback = function(b)
+            got(Teleports2[b])
+        end
+    }
+)
