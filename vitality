@@ -924,41 +924,28 @@ do --// UI Source
 
 			local Holder = Params.Parent and (Params.Parent.Instance or Params.Parent) or Target.Parent
 
-			-- The bar is placed by hand, so it must not land inside a frame that is
-			-- driven by a layout. Walk up until there is no layout in the way.
-			while Holder and Holder.Parent and Holder:IsA("GuiObject") and Holder.Parent:IsA("GuiObject")
-				and (Holder:FindFirstChildOfClass("UIListLayout")
-					or Holder:FindFirstChildOfClass("UIGridLayout")
-					or Holder:FindFirstChildOfClass("UIPageLayout")) do
-				Holder = Holder.Parent
-			end
-
+			-- The bar rides inside the frame it belongs to and is placed against that
+			-- frame's own edges, so no layout or padding up the tree can drag it onto a
+			-- border. Top/Right/Bottom are plain pixel insets inside that frame.
 			if not (Holder and Holder:IsA("GuiObject")) then
 				return
 			end
 
 			local Thickness = Params.Thickness or 2
-			local Inset = Params.Inset or 0
-			-- Every section keeps a 6px gutter inside its right edge for the bar, so
-			-- callers nudge the bar into that gutter with Offset instead of pinning it
-			-- to the scroller edge. The default layer draws above page content but
-			-- below every popup, which keeps the bar off colorpickers and option lists.
-			local Offset = Params.Offset or 0
+			-- Right: gutter kept between the bar and the holder's right edge.
+			-- Top: where the scroller starts inside the holder.
+			-- Bottom: pixels trimmed off the bottom of the bar's travel.
+			local Right = Params.Right or 4
+			local Top = Params.Top or 30
+			local Bottom = Params.Bottom or 0
+			-- The default layer draws above page content but below every popup, which
+			-- keeps the bar off colorpickers and option lists.
 			local Layer = Params.ZIndex or 3
 
 			Target.ScrollBarThickness = 0
 
-			local Track = Library:Create("Frame", {
-				Name = "\0",
-				Parent = Holder,
-				BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-				BackgroundTransparency = 0.5,
-				BorderSizePixel = 0,
-				Visible = false,
-				ZIndex = Layer,
-				Size = UDim2.fromOffset(Thickness, 0)
-			})
-
+			-- No track behind the bar. A permanent dark strip reads as a stray black
+			-- border whenever there is nothing to scroll, so only the accent bar draws.
 			local Bar = Library:Create("Frame", {
 				Name = "\0",
 				Parent = Holder,
@@ -974,11 +961,11 @@ do --// UI Source
 			local Entry = {
 				Scroll = Target,
 				Holder = Holder,
-				Track = Track.Instance,
 				Bar = Bar.Instance,
 				Thickness = Thickness,
-				Inset = Inset,
-				Offset = Offset
+				Right = Right,
+				Top = Top,
+				Bottom = Bottom
 			}
 
 			table.insert(Library.Scrollbars, Entry)
@@ -1005,7 +992,6 @@ do --// UI Source
 
 				if not (Scroll and Scroll.Parent and Entry.Holder and Entry.Holder.Parent) then
 					pcall(function()
-						Entry.Track:Destroy()
 						Entry.Bar:Destroy()
 					end)
 
@@ -1014,35 +1000,29 @@ do --// UI Source
 					local View = Scroll.AbsoluteSize
 					local Canvas = Scroll.AbsoluteCanvasSize
 
-					if not ScrollbarVisible(Scroll) or View.Y < 8 or Canvas.Y - View.Y < 6 then
-						Entry.Track.Visible = false
+					local Range = Canvas.Y - View.Y
+
+					if not ScrollbarVisible(Scroll) or View.Y < 8 or Range < 6 then
+						-- Nothing to scroll: hide the bar and stop eating the mouse wheel, so it
+						-- reaches the page column underneath instead.
 						Entry.Bar.Visible = false
+						Scroll.ScrollingEnabled = false
 					else
-						local PadX = 0
-						local PadY = 0
-						local Padding = Entry.Holder:FindFirstChildOfClass("UIPadding")
+						Scroll.ScrollingEnabled = true
 
-						if Padding then
-							PadX = Padding.PaddingLeft.Offset + Padding.PaddingLeft.Scale * Entry.Holder.AbsoluteSize.X
-							PadY = Padding.PaddingTop.Offset + Padding.PaddingTop.Scale * Entry.Holder.AbsoluteSize.Y
-						end
-
-						local Rel = Scroll.AbsolutePosition - Entry.Holder.AbsolutePosition
-						local Height = math.max(View.Y - Entry.Inset * 2, 1)
+						-- The track is the scroller's own visible height, measured from Top inside
+						-- the holder, so the bar can never reach past the frame it lives in and
+						-- can never feed back into an automatic size.
+						local Track = math.max(View.Y - Entry.Bottom, 8)
 						-- Always leave a few pixels of travel. A bar that fills its whole track
 						-- reads as frozen even while the list is scrolling.
-						local MinBar = math.min(16, Height)
-						local MaxBar = math.max(Height - 6, MinBar)
-						local BarHeight = math.clamp(Height * (View.Y / Canvas.Y), MinBar, MaxBar)
-						local Progress = math.clamp(Scroll.CanvasPosition.Y / math.max(Canvas.Y - View.Y, 1), 0, 1)
-						local X = Rel.X + View.X + (Entry.Offset or 0) - Entry.Thickness - PadX
-						local Y = Rel.Y + Entry.Inset - PadY
+						local MinBar = math.min(16, Track)
+						local MaxBar = math.max(Track - 6, MinBar)
+						local BarHeight = math.clamp(Track * (View.Y / Canvas.Y), MinBar, MaxBar)
+						local Progress = math.clamp(Scroll.CanvasPosition.Y / Range, 0, 1)
 
-						Entry.Track.Size = UDim2.fromOffset(Entry.Thickness, Height)
-						Entry.Track.Position = UDim2.fromOffset(X, Y)
 						Entry.Bar.Size = UDim2.fromOffset(Entry.Thickness, BarHeight)
-						Entry.Bar.Position = UDim2.fromOffset(X, Y + (Height - BarHeight) * Progress)
-						Entry.Track.Visible = true
+						Entry.Bar.Position = UDim2.new(1, -(Entry.Right + Entry.Thickness), 0, Entry.Top + (Track - BarHeight) * Progress)
 						Entry.Bar.Visible = true
 					end
 				end
@@ -1532,7 +1512,7 @@ do --// UI Source
 					AutomaticCanvasSize = Enum.AutomaticSize.Y
 				}):AddToTheme({ScrollBarImageColor3 = 'Accent', BackgroundColor3 = 'Console Body'})
 
-				Library:Scrollbar(Items["Scroll"], {Inset = 2})
+				Library:Scrollbar(Items["Scroll"], {Top = 70, Right = 10, Bottom = 4})
 
 				Library:Create("UIStroke", {
 					Name = "\0",
@@ -4528,7 +4508,7 @@ do --// UI Source
 					Parent = Items["Page"].Instance,
 					FillDirection = Enum.FillDirection.Horizontal,
 					HorizontalFlex = Enum.UIFlexAlignment.Fill,
-					Padding = UDim.new(0, 5),
+					Padding = UDim.new(0, 2),
 					SortOrder = Enum.SortOrder.LayoutOrder
 				})
 
@@ -4538,21 +4518,22 @@ do --// UI Source
 					ScrollBarImageColor3 = Library.Theme["Accent"],
 					Active = true,
 					AutomaticCanvasSize = Enum.AutomaticSize.Y,
-					ScrollBarThickness = 3,
+					ScrollBarThickness = 0,
 					BackgroundTransparency = 1,
 					Size = UDim2.new(1, 0, 1, 0),
 					BorderSizePixel = 0,
 					CanvasSize = UDim2.new(0, 0, 0, 0)
 				}):AddToTheme({ScrollBarImageColor3 = 'Accent'})
 
-				Library:Scrollbar(Items["LeftColumn"], {Inset = 6, Offset = -5})
+				-- Page columns scroll with the wheel only. Every visible bar now lives
+				-- inside a section, which is where the contents actually scroll.
 
 				Library:Create("UIPadding", {
 					Name = "\0",
 					Parent = Items["LeftColumn"].Instance,
 					PaddingTop = UDim.new(0, 6),
 					PaddingBottom = UDim.new(0, 6),
-					PaddingRight = UDim.new(0, 0),
+					PaddingRight = UDim.new(0, 2),
 					PaddingLeft = UDim.new(0, 3)
 				})
 
@@ -4569,14 +4550,14 @@ do --// UI Source
 					ScrollBarImageColor3 = Library.Theme["Accent"],
 					Active = true,
 					AutomaticCanvasSize = Enum.AutomaticSize.Y,
-					ScrollBarThickness = 3,
+					ScrollBarThickness = 0,
 					BackgroundTransparency = 1,
 					Size = UDim2.new(1, 0, 1, 0),
 					BorderSizePixel = 0,
 					CanvasSize = UDim2.new(0, 0, 0, 0)
 				}):AddToTheme({ScrollBarImageColor3 = 'Accent'})
 
-				Library:Scrollbar(Items["RightColumn"], {Inset = 6, Offset = -8})
+				-- Same for the right column: wheel only, no bar outside the sections.
 
 				Library:Create("UIPadding", {
 					Name = "\0",
@@ -4584,7 +4565,7 @@ do --// UI Source
 					PaddingTop = UDim.new(0, 6),
 					PaddingBottom = UDim.new(0, 6),
 					PaddingRight = UDim.new(0, 3),
-					PaddingLeft = UDim.new(0, 0)
+					PaddingLeft = UDim.new(0, 2)
 				})
 
 				Library:Create("UIListLayout", {
@@ -4700,11 +4681,14 @@ do --// UI Source
 			}
 
 			local Items = { } do
-				-- Sections size to their content: a box holding two toggles is two
-				-- toggles tall instead of a half-empty panel. Pass FullHeight = true
-				-- when a section should stretch down its column and scroll internally.
-				-- The page columns scroll on their own once sections outgrow the window.
+				-- Sections size to their content: a box holding two toggles is two toggles
+				-- tall instead of a half-empty panel. Once the elements inside pass
+				-- MaxHeight the box stops growing and scrolls its own contents, with the
+				-- bar riding the inside of the section's right edge. Pass FullHeight = true
+				-- to stretch a section down its column instead, or MaxHeight to give one
+				-- section a different ceiling.
 				local FullHeight = Params.FullHeight == true
+				local MaxHeight = Params.MaxHeight or Params.maxheight or 240
 				Items["Section"] = Library:Create("Frame", {
 					Name = "\0",
 					Parent = Section.Page.ColumnsData[Section.Side].Instance,
@@ -4803,17 +4787,34 @@ do --// UI Source
 						ScrollBarImageTransparency = 0
 					}):AddToTheme({ScrollBarImageColor3 = 'Accent'})
 
-					Library:Scrollbar(Items["Content"], {Parent = Items["Section"], Offset = 5})
+					Library:Scrollbar(Items["Content"], {Parent = Items["Section"], Top = 30, Right = 4})
 				else
-					Items["Content"] = Library:Create("Frame", {
+					-- Still sized by its elements, but it is a scroller with a hard ceiling:
+					-- past MaxHeight the toggles, keybinds and sliders inside scroll and the
+					-- bar appears in the section's own right-hand gutter.
+					Items["Content"] = Library:Create("ScrollingFrame", {
 						Name = "\0",
 						Parent = Items["Section"].Instance,
+						Active = true,
 						BackgroundTransparency = 1,
 						Position = UDim2.new(0, 4, 0, 30),
 						Size = UDim2.new(1, -14, 0, 0),
 						BorderSizePixel = 0,
-						AutomaticSize = Enum.AutomaticSize.Y
+						CanvasSize = UDim2.new(0, 0, 0, 0),
+						AutomaticCanvasSize = Enum.AutomaticSize.Y,
+						AutomaticSize = Enum.AutomaticSize.Y,
+						ScrollingDirection = Enum.ScrollingDirection.Y,
+						ElasticBehavior = Enum.ElasticBehavior.Never,
+						ScrollBarThickness = 0
 					})
+
+					Library:Create("UISizeConstraint", {
+						Name = "\0",
+						Parent = Items["Content"].Instance,
+						MaxSize = Vector2.new(math.huge, MaxHeight)
+					})
+
+					Library:Scrollbar(Items["Content"], {Parent = Items["Section"], Top = 30, Right = 4})
 				end
 
 				Library:Create("UIListLayout", {
@@ -6078,7 +6079,7 @@ do --// UI Source
 					ZIndex = 2
 				}):AddToTheme({ScrollBarImageColor3 = 'Accent'})
 
-				Library:Scrollbar(Items["OptionScroll"], {ZIndex = 9, Offset = -1})
+				Library:Scrollbar(Items["OptionScroll"], {ZIndex = 9, Top = 0, Right = -3})
 
 				Library:Create("UIListLayout", {
 					Name = "\0",
