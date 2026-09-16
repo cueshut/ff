@@ -889,6 +889,160 @@ do --// UI Source
 		end
 		--#endregion
 
+		--#region Vitality Scrollbar (accent gradient, 2px)
+		-- Roblox's native scrollbar can only be a flat colour, so it is switched off
+		-- and a 2px bar is drawn over the right edge of the scroller instead. It
+		-- carries the same accent gradient as the slider fill, soft mid seam and all,
+		-- so every scroller in the UI reads like a miniature slider.
+		Library.Scrollbars = { }
+
+		Library.ScrollbarGradient = function(Self, Item)
+			return Library:Create("UIGradient", {
+				Name = "\0",
+				Parent = Item and (Item.Instance or Item),
+				Rotation = 90,
+				Color = ColorSequence.new{
+					ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+					ColorSequenceKeypoint.new(0.4, Color3.fromRGB(252, 252, 252)),
+					ColorSequenceKeypoint.new(0.45, Color3.fromRGB(243, 243, 243)),
+					ColorSequenceKeypoint.new(0.5, Color3.fromRGB(222, 222, 222)),
+					ColorSequenceKeypoint.new(0.55, Color3.fromRGB(200, 200, 200)),
+					ColorSequenceKeypoint.new(0.6, Color3.fromRGB(186, 186, 186)),
+					ColorSequenceKeypoint.new(1, Color3.fromRGB(180, 180, 180))
+				}
+			})
+		end
+
+		Library.Scrollbar = function(Self, Scroll, Params)
+			Params = Params or { }
+
+			local Target = Scroll and (Scroll.Instance or Scroll)
+
+			if not Target then
+				return
+			end
+
+			local Holder = Params.Parent and (Params.Parent.Instance or Params.Parent) or Target.Parent
+
+			-- The bar is placed by hand, so it must not land inside a frame that is
+			-- driven by a layout. Walk up until there is no layout in the way.
+			while Holder and Holder.Parent and Holder:IsA("GuiObject") and Holder.Parent:IsA("GuiObject")
+				and (Holder:FindFirstChildOfClass("UIListLayout")
+					or Holder:FindFirstChildOfClass("UIGridLayout")
+					or Holder:FindFirstChildOfClass("UIPageLayout")) do
+				Holder = Holder.Parent
+			end
+
+			if not (Holder and Holder:IsA("GuiObject")) then
+				return
+			end
+
+			local Thickness = Params.Thickness or 2
+			local Inset = Params.Inset or 0
+			local Layer = Params.ZIndex or 50
+
+			Target.ScrollBarThickness = 0
+
+			local Track = Library:Create("Frame", {
+				Name = "\0",
+				Parent = Holder,
+				BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+				BackgroundTransparency = 0.5,
+				BorderSizePixel = 0,
+				Visible = false,
+				ZIndex = Layer,
+				Size = UDim2.fromOffset(Thickness, 0)
+			})
+
+			local Bar = Library:Create("Frame", {
+				Name = "\0",
+				Parent = Holder,
+				BackgroundColor3 = Library.Theme["Accent"],
+				BorderSizePixel = 0,
+				Visible = false,
+				ZIndex = Layer + 1,
+				Size = UDim2.fromOffset(Thickness, 0)
+			}):AddToTheme({BackgroundColor3 = 'Accent'})
+
+			Library:ScrollbarGradient(Bar)
+
+			local Entry = {
+				Scroll = Target,
+				Holder = Holder,
+				Track = Track.Instance,
+				Bar = Bar.Instance,
+				Thickness = Thickness,
+				Inset = Inset
+			}
+
+			table.insert(Library.Scrollbars, Entry)
+
+			return Entry
+		end
+
+		local function ScrollbarVisible(Object)
+			while Object and Object:IsA("GuiObject") do
+				if not Object.Visible then
+					return false
+				end
+
+				Object = Object.Parent
+			end
+
+			return true
+		end
+
+		Library.UpdateScrollbars = function(Self)
+			for Index = #Library.Scrollbars, 1, -1 do
+				local Entry = Library.Scrollbars[Index]
+				local Scroll = Entry.Scroll
+
+				if not (Scroll and Scroll.Parent and Entry.Holder and Entry.Holder.Parent) then
+					pcall(function()
+						Entry.Track:Destroy()
+						Entry.Bar:Destroy()
+					end)
+
+					table.remove(Library.Scrollbars, Index)
+				else
+					local View = Scroll.AbsoluteSize
+					local Canvas = Scroll.AbsoluteCanvasSize
+
+					if not ScrollbarVisible(Scroll) or View.Y < 8 or Canvas.Y <= View.Y + 1 then
+						Entry.Track.Visible = false
+						Entry.Bar.Visible = false
+					else
+						local PadX = 0
+						local PadY = 0
+						local Padding = Entry.Holder:FindFirstChildOfClass("UIPadding")
+
+						if Padding then
+							PadX = Padding.PaddingLeft.Offset + Padding.PaddingLeft.Scale * Entry.Holder.AbsoluteSize.X
+							PadY = Padding.PaddingTop.Offset + Padding.PaddingTop.Scale * Entry.Holder.AbsoluteSize.Y
+						end
+
+						local Rel = Scroll.AbsolutePosition - Entry.Holder.AbsolutePosition
+						local Height = math.max(View.Y - Entry.Inset * 2, 1)
+						local BarHeight = math.clamp(Height * (View.Y / Canvas.Y), 14, Height)
+						local Progress = math.clamp(Scroll.CanvasPosition.Y / math.max(Canvas.Y - View.Y, 1), 0, 1)
+						local X = Rel.X + View.X - Entry.Thickness - PadX
+						local Y = Rel.Y + Entry.Inset - PadY
+
+						Entry.Track.Size = UDim2.fromOffset(Entry.Thickness, Height)
+						Entry.Track.Position = UDim2.fromOffset(X, Y)
+						Entry.Bar.Size = UDim2.fromOffset(Entry.Thickness, BarHeight)
+						Entry.Bar.Position = UDim2.fromOffset(X, Y + (Height - BarHeight) * Progress)
+						Entry.Track.Visible = true
+						Entry.Bar.Visible = true
+					end
+				end
+			end
+		end
+
+		Library:Connect(RunService.RenderStepped, function()
+			Library:UpdateScrollbars()
+		end)
+		--#endregion
 		--#region Vitality Tooltip (inline box, reference screenshot 2)
 		-- "lined tooltip which can have loads of text": a dark box with the double
 		-- border that opens beside the element it describes and wraps its text over
@@ -1368,6 +1522,8 @@ do --// UI Source
 					AutomaticCanvasSize = Enum.AutomaticSize.Y
 				}):AddToTheme({ScrollBarImageColor3 = 'Accent', BackgroundColor3 = 'Console Body'})
 
+				Library:Scrollbar(Items["Scroll"], {Inset = 2})
+
 				Library:Create("UIStroke", {
 					Name = "\0",
 					Parent = Items["Scroll"].Instance,
@@ -1474,6 +1630,49 @@ do --// UI Source
 		end
 		--#endregion
 
+		--#region Vitality Watermark options
+		-- Settings -> HUD -> Options writes into Library.WatermarkOptions and the
+		-- Refresh Rate slider into Library.WatermarkRefreshRate. These helpers are
+		-- what the watermark strip reads when it composes its own text, which is why
+		-- the Game / Status / Fps / Ping switches now actually do something.
+		Library.WatermarkOptions = Library.WatermarkOptions or { "Game", "Status", "Fps", "Ping" }
+		Library.WatermarkRefreshRate = Library.WatermarkRefreshRate or 0.1
+		Library.GameName = nil
+
+		Library.HasWatermarkOption = function(Self, Name)
+			local Options = Library.WatermarkOptions
+
+			if type(Options) == "table" then
+				for _, Option in ipairs(Options) do
+					if tostring(Option) == Name then
+						return true
+					end
+				end
+
+				return false
+			end
+
+			return tostring(Options) == Name
+		end
+
+		Library.GetGameName = function(Self)
+			if Library.GameName then
+				return Library.GameName
+			end
+
+			local Ok, Info = pcall(function()
+				return game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId)
+			end)
+
+			if Ok and type(Info) == "table" and Info.Name then
+				Library.GameName = tostring(Info.Name)
+			else
+				Library.GameName = "place " .. tostring(game.PlaceId)
+			end
+
+			return Library.GameName
+		end
+		--#endregion
 		--#region Vitality Watermark
 		Library.Watermark = function(Self, Params)
 			Params = Params or { }
@@ -1677,6 +1876,71 @@ do --// UI Source
 				Items["Watermark"].Instance.Visible = Bool
 			end
 
+			-- Live watermark content. The Settings page exposes Game / Status / Fps /
+			-- Ping plus a refresh rate, so the strip composes itself here instead of
+			-- relying on whatever script created it. Pass Auto = false to keep manual
+			-- control through SetSubText.
+			Watermark.Status = Watermark.SubName
+			Watermark.Auto = Params.Auto ~= false and Params.auto ~= false
+
+			function Watermark:SetStatus(Text)
+				Watermark.Status = tostring(Text)
+			end
+
+			Library:Thread(function()
+				local Frames = 0
+				local Last = os.clock()
+				local Fps = 0
+				local Ping = 0
+
+				while Items["Watermark"].Instance.Parent do
+					task.wait()
+					Frames += 1
+
+					local Now = os.clock()
+					local Rate = math.max(tonumber(Library.WatermarkRefreshRate) or 0.1, 0.05)
+
+					if Now - Last >= Rate then
+						Fps = math.floor(Frames / (Now - Last) + 0.5)
+						Frames = 0
+						Last = Now
+
+						pcall(function()
+							Ping = math.floor(game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue() + 0.5)
+						end)
+
+						if Watermark.Auto then
+							local Parts = { }
+
+							if Library:HasWatermarkOption("Game") then
+								table.insert(Parts, Library:GetGameName())
+							end
+
+							if Library:HasWatermarkOption("Status") and tostring(Watermark.Status) ~= "" then
+								table.insert(Parts, tostring(Watermark.Status))
+							end
+
+							if Library:HasWatermarkOption("Fps") then
+								table.insert(Parts, Fps .. " fps")
+							end
+
+							if Library:HasWatermarkOption("Ping") then
+								table.insert(Parts, Ping .. " ms")
+							end
+
+							local Accent = Library.Theme["Accent"]
+							local Separator = string.format(
+								' <font color="rgb(%d, %d, %d)">.</font> ',
+								math.floor(Accent.R * 255 + 0.5),
+								math.floor(Accent.G * 255 + 0.5),
+								math.floor(Accent.B * 255 + 0.5)
+							)
+
+							Watermark:SetSubText(table.concat(Parts, Separator))
+						end
+					end
+				end
+			end)
 			Watermark:Center()
 			return setmetatable(Watermark, Library)
 		end
@@ -2568,6 +2832,17 @@ do --// UI Source
 					TextXAlignment = Enum.TextXAlignment.Left
 				}):AddToTheme({TextColor3 = 'Text'})
 
+				-- Settings page boxes get the same 1px black plate the sliders use, so the
+				Items["AnimateShadow"] = Library:Create("Frame", {
+					Name = "\0",
+					Parent = Items["SettingsPage"].Instance,
+					Position = UDim2.new(1, -12, 0, 4),
+					Size = UDim2.new(0, 13, 0, 13),
+					BorderSizePixel = 0,
+					ZIndex = 0,
+					BackgroundTransparency = 0.6,
+					BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+				})
 				Items["AnimateButton"] = Library:Create("TextButton", {
 					Name = "\0",
 					FontFace = Library.Font,
@@ -2614,6 +2889,17 @@ do --// UI Source
 					TextXAlignment = Enum.TextXAlignment.Left
 				}):AddToTheme({TextColor3 = 'Inactive Text'})
 
+				-- animate switch and the animation list lift off the panel instead of
+				Items["AnimationListShadow"] = Library:Create("Frame", {
+					Name = "\0",
+					Parent = Items["SettingsPage"].Instance,
+					Position = UDim2.new(0, 1, 0, 47),
+					Size = UDim2.new(1, 0, 0, 116),
+					BorderSizePixel = 0,
+					ZIndex = 0,
+					BackgroundTransparency = 0.6,
+					BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+				})
 				Items["AnimationList"] = Library:Create("Frame", {
 					Name = "\0",
 					Parent = Items["SettingsPage"].Instance,
@@ -3510,7 +3796,10 @@ do --// UI Source
 					Keybind:SetOpen(false)
 				end
 
-				if Data.Toggle and not Data.Toggle.Value then
+				-- A keybind hung on a toggle used to be ignored while that toggle was off,
+				-- so a bind that switches the module itself never fired. Gate on the parent
+				-- toggle only when the caller explicitly asks for module-key behaviour.
+				if Data.Toggle and Data.GateByToggle and not Data.Toggle.Value then
 					return
 				end
 
@@ -4209,6 +4498,8 @@ do --// UI Source
 					CanvasSize = UDim2.new(0, 0, 0, 0)
 				}):AddToTheme({ScrollBarImageColor3 = 'Accent'})
 
+				Library:Scrollbar(Items["LeftColumn"], {Inset = 6})
+
 				Library:Create("UIPadding", {
 					Name = "\0",
 					Parent = Items["LeftColumn"].Instance,
@@ -4237,6 +4528,8 @@ do --// UI Source
 					BorderSizePixel = 0,
 					CanvasSize = UDim2.new(0, 0, 0, 0)
 				}):AddToTheme({ScrollBarImageColor3 = 'Accent'})
+
+				Library:Scrollbar(Items["RightColumn"], {Inset = 6})
 
 				Library:Create("UIPadding", {
 					Name = "\0",
@@ -4462,6 +4755,8 @@ do --// UI Source
 						ScrollBarImageColor3 = Library.Theme["Accent"],
 						ScrollBarImageTransparency = 0
 					}):AddToTheme({ScrollBarImageColor3 = 'Accent'})
+
+					Library:Scrollbar(Items["Content"])
 				else
 					Items["Content"] = Library:Create("Frame", {
 						Name = "\0",
@@ -4965,6 +5260,7 @@ do --// UI Source
 					Page = Keybind.Page,
 					Section = Keybind.Section,
 					Toggle = Toggle,
+					GateByToggle = Data.GateByToggle or Data.gateByToggle or false,
 					Flag = Keybind.Flag,
 					Default = Keybind.Default,
 					Mode = Keybind.Mode,
@@ -5289,11 +5585,15 @@ do --// UI Source
 					Rotation = 0,
 					Color = ColorSequence.new{
 						ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
-						ColorSequenceKeypoint.new(0.4635, Color3.fromRGB(255, 255, 255)),
-						ColorSequenceKeypoint.new(0.4818, Color3.fromRGB(243, 243, 243)),
-						ColorSequenceKeypoint.new(0.5, Color3.fromRGB(217, 217, 217)),
-						ColorSequenceKeypoint.new(0.5183, Color3.fromRGB(190, 190, 190)),
-						ColorSequenceKeypoint.new(0.5365, Color3.fromRGB(178, 178, 178)),
+						ColorSequenceKeypoint.new(0.4400, Color3.fromRGB(255, 255, 255)),
+						ColorSequenceKeypoint.new(0.4600, Color3.fromRGB(250, 250, 250)),
+						ColorSequenceKeypoint.new(0.4750, Color3.fromRGB(241, 241, 241)),
+						ColorSequenceKeypoint.new(0.4875, Color3.fromRGB(230, 230, 230)),
+						ColorSequenceKeypoint.new(0.5000, Color3.fromRGB(217, 217, 217)),
+						ColorSequenceKeypoint.new(0.5125, Color3.fromRGB(204, 204, 204)),
+						ColorSequenceKeypoint.new(0.5250, Color3.fromRGB(193, 193, 193)),
+						ColorSequenceKeypoint.new(0.5400, Color3.fromRGB(184, 184, 184)),
+						ColorSequenceKeypoint.new(0.5600, Color3.fromRGB(179, 179, 179)),
 						ColorSequenceKeypoint.new(1, Color3.fromRGB(178, 178, 178))
 					}
 				})
@@ -5361,7 +5661,9 @@ do --// UI Source
 			-- blend down to about 1px and the bar looked like two flat colours. Rebuilding
 			-- the sequence from the fill width on every set keeps the transition 13px wide
 			-- at any value.
-			local SeamWidth = 13
+			-- 16px of blend instead of 13: the wider the seam, the less the midpoint
+			-- reads as two flat reds meeting.
+			local SeamWidth = 16
 
 			local UpdateSeam = function(Fraction)
 				local Gradient = Items["AccentGradient"]
@@ -5377,9 +5679,15 @@ do --// UI Source
 				Gradient.Instance.Color = ColorSequence.new{
 					ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
 					ColorSequenceKeypoint.new(math.max(0.5 - Half, 0.01), Color3.fromRGB(255, 255, 255)),
-					ColorSequenceKeypoint.new(0.5 - Half * 0.5, Color3.fromRGB(243, 243, 243)),
+					ColorSequenceKeypoint.new(0.5 - Half * 0.80, Color3.fromRGB(251, 251, 251)),
+					ColorSequenceKeypoint.new(0.5 - Half * 0.60, Color3.fromRGB(245, 245, 245)),
+					ColorSequenceKeypoint.new(0.5 - Half * 0.40, Color3.fromRGB(236, 236, 236)),
+					ColorSequenceKeypoint.new(0.5 - Half * 0.20, Color3.fromRGB(227, 227, 227)),
 					ColorSequenceKeypoint.new(0.5, Color3.fromRGB(217, 217, 217)),
-					ColorSequenceKeypoint.new(0.5 + Half * 0.5, Color3.fromRGB(190, 190, 190)),
+					ColorSequenceKeypoint.new(0.5 + Half * 0.20, Color3.fromRGB(207, 207, 207)),
+					ColorSequenceKeypoint.new(0.5 + Half * 0.40, Color3.fromRGB(198, 198, 198)),
+					ColorSequenceKeypoint.new(0.5 + Half * 0.60, Color3.fromRGB(190, 190, 190)),
+					ColorSequenceKeypoint.new(0.5 + Half * 0.80, Color3.fromRGB(183, 183, 183)),
 					ColorSequenceKeypoint.new(math.min(0.5 + Half, 0.99), Color3.fromRGB(178, 178, 178)),
 					ColorSequenceKeypoint.new(1, Color3.fromRGB(178, 178, 178))
 				}
@@ -5722,6 +6030,8 @@ do --// UI Source
 					ScrollBarImageColor3 = Library.Theme["Accent"],
 					ZIndex = 2
 				}):AddToTheme({ScrollBarImageColor3 = 'Accent'})
+
+				Library:Scrollbar(Items["OptionScroll"], {ZIndex = 250})
 
 				Library:Create("UIListLayout", {
 					Name = "\0",
@@ -6245,7 +6555,8 @@ do --// UI Source
 						Text = Textbox.Name,
 						Size = UDim2.new(0, 0, 0, 16),
 						BackgroundTransparency = 1,
-						Position = UDim2.new(0, 1, 0, 0),
+						-- 2px more air between the caption and the input box under it.
+						Position = UDim2.new(0, 1, 0, -2),
 						BorderSizePixel = 0,
 						AutomaticSize = Enum.AutomaticSize.X
 					}):AddToTheme({TextColor3 = 'Text'})
@@ -6735,22 +7046,13 @@ do --// UI Source
 
 
 		--#region Ported game script - juanitahaxx
-		-- The juanitahaxx | airflow script, ported onto this library and kept
-		-- inside one function so the file above stays library-only. Calling it
-		-- builds the window, the feature loops and the unload path.
-		--
-		-- Pages: movement (fly, walkspeed, noclip, jumps, anti afk, instant
-		-- interact, ctrl + click teleport, waypoints, area teleports), visuals
-		-- (world, lighting, camera, trinket esp with tracers, player esp),
-		-- combat (auto pickup, trinket teleport, instant kill, kill aura, fps
-		-- cap) and players (targeting, spectate, interface, server tools).
-		--
-		-- Run it with Library:RunGameScript(), or set
-		-- getgenv().VITALITY_RUN_GAME_SCRIPT = true before loading this file.
-		-- To run it standalone instead, keep a copy that starts with
-		-- local Library = loadstring(game:HttpGet(<raw url to this file>))().
+		-- The whole juanitahaxx | airflow script, ported to this library and kept
+		-- here as living documentation of the API. Run it with
+		-- Library:RunGameScript(), or set getgenv().VITALITY_RUN_GAME_SCRIPT = true
+		-- before loading the library.
 		Library.RunGameScript = function(Self)
 			local Library = Self
+
 
 			-- Re-execution guard: unload the previous copy (fly, ESP, drawings, loops)
 			-- instead of stacking a second one on top of it.
@@ -6803,6 +7105,11 @@ do --// UI Source
 				InfiniteJump = false,
 				JumpPowerEnabled = false,
 				JumpPower = 50,
+				-- Jump fly: a jump becomes a forward launch plus a short glide instead of a
+				-- vertical pop, so power throws you along the ground rather than skyward.
+				JumpFly = false,
+				JumpFlySpeed = 90,
+				JumpFlyTime = 0.55,
 				AntiAfk = false,
 				InstantPrompts = false,
 				ClickTeleport = false,
@@ -7699,20 +8006,92 @@ do --// UI Source
 				end
 			end
 
-			-- Jump power and fov are both "hold this value" features, so they share one
-			-- heartbeat instead of each spawning its own loop.
+			-- Jump fly: cranking Humanoid.JumpPower only fires you straight up, which is
+			-- not useful for getting anywhere. Now a jump request throws the character
+			-- along the camera's flat look direction and holds that speed for a moment, so
+			-- a jump reads as a short forward dash that glides. Walkspeed feeds into it, so
+			-- a faster character launches further.
+			local jumpFlyConn = nil
+			local jumpFlyBusy = false
+
+			local function jumpFlySpeed()
+				local speed = Extra.JumpFlySpeed
+
+				if Config.WalkSpeedEnabled then
+					speed = math.max(speed, Config.WalkSpeed * 1.5)
+				end
+
+				return math.max(speed, 1)
+			end
+
+			local function launchJumpFly()
+				if jumpFlyBusy or not getHRP() then return end
+
+				jumpFlyBusy = true
+
+				task.spawn(function()
+					local started = os.clock()
+					local duration = math.clamp(Extra.JumpFlyTime, 0.05, 3)
+
+					while not Unloaded and Extra.JumpFly and os.clock() - started < duration do
+						local part = getHRP()
+						if not part then break end
+
+						local cam = Workspace.CurrentCamera
+						local look = cam and cam.CFrame.LookVector or part.CFrame.LookVector
+						local flat = Vector3.new(look.X, 0, look.Z)
+
+						if flat.Magnitude < 0.01 then
+							flat = Vector3.new(part.CFrame.LookVector.X, 0, part.CFrame.LookVector.Z)
+						end
+
+						if flat.Magnitude < 0.01 then break end
+
+						local speed = jumpFlySpeed()
+						local elapsed = os.clock() - started
+						-- a little lift for the first third of the launch, then a flat glide
+						local rise = elapsed < duration * 0.35 and speed * 0.3 or speed * 0.05
+
+						pcall(function()
+							part.AssemblyLinearVelocity = flat.Unit * speed + Vector3.new(0, rise, 0)
+						end)
+
+						task.wait()
+					end
+
+					jumpFlyBusy = false
+				end)
+			end
+
+			local function SetJumpFly(on)
+				Extra.JumpFly = on
+
+				if on then
+					if jumpFlyConn then return end
+
+					jumpFlyConn = Library:Connect(UserInputService.JumpRequest, function()
+						if Unloaded or not Extra.JumpFly then return end
+						launchJumpFly()
+					end)
+				elseif jumpFlyConn then
+					jumpFlyConn:Disconnect()
+					jumpFlyConn = nil
+				end
+			end
+
+			registerCleanup(function()
+				Extra.JumpFly = false
+				jumpFlyBusy = false
+
+				if jumpFlyConn then
+					pcall(function() jumpFlyConn:Disconnect() end)
+					jumpFlyConn = nil
+				end
+			end)
+
+			-- Fov is a "hold this value" feature, so it rides one shared heartbeat.
 			Library:Connect(RunService.Heartbeat, function()
 				if Unloaded then return end
-
-				if Extra.JumpPowerEnabled then
-					local hum = getHumanoid()
-					if hum then
-						pcall(function()
-							hum.UseJumpPower = true
-							hum.JumpPower = Extra.JumpPower
-						end)
-					end
-				end
 
 				if Extra.FovEnabled then
 					local cam = Workspace.CurrentCamera
@@ -8079,38 +8458,13 @@ do --// UI Source
 			-- ============================================================
 			local Window = Library:Window({ Name = "juanitahaxx | airflow" })
 
+			-- The library composes the watermark strip itself now: Settings -> HUD ->
+			-- Options picks game name / status / fps / ping and Refresh Rate sets how often
+			-- it recomputes, so the script only supplies a name and a status word.
 			local Watermark = Library.WatermarkObject or Library:Watermark({
 				Name = "juanitahaxx",
 				SubName = "airflow"
 			})
-
-			-- live fps / ping on the watermark strip
-			Library:Thread(function()
-				local Sep = '<font color="rgb(181, 32, 55)">·</font>'
-				local Last = os.clock()
-				local Frames = 0
-
-				while not Unloaded do
-					task.wait()
-					Frames += 1
-
-					local Now = os.clock()
-					if Now - Last >= 0.5 then
-						local Fps = math.floor(Frames / (Now - Last) + 0.5)
-						local Ping = 0
-						Frames = 0
-						Last = Now
-
-						pcall(function()
-							Ping = math.floor(game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue() + 0.5)
-						end)
-
-						pcall(function()
-							Watermark:SetSubText(string.format('airflow %s %d fps %s %d ms', Sep, Fps, Sep, Ping))
-						end)
-					end
-				end
-			end)
 
 			Console = Library.ConsoleObject or Library:Console({
 				Name = "Console",
@@ -8123,11 +8477,16 @@ do --// UI Source
 			local MovementPage = Window:Page({ Name = "movement" })
 			local VisualsPage = Window:Page({ Name = "visuals" })
 			local CombatPage = Window:Page({ Name = "combat" })
+			local PlayersPage = Window:Page({ Name = "players" })
 
-			-- ---------------- Movement ----------------
-			local FlySection = MovementPage:Section({ Name = "fly", Side = 1 })
+			-- ---------------- Movement: character ----------------
+			-- Every character module lives in this one section, and each toggle carries its
+			-- own keybind chip on the same row instead of a separate "x keybind" label.
+			-- Vitality fires a keybind callback once at init (state = false), so driving the
+			-- toggle from the passed state keeps that first call harmless.
+			local CharacterSection = MovementPage:Section({ Name = "character", Side = 1 })
 
-			local FlyToggle = FlySection:Toggle({
+			local FlyToggle = CharacterSection:Toggle({
 				Name = "fly",
 				Flag = "fly",
 				Default = false,
@@ -8137,12 +8496,7 @@ do --// UI Source
 				end,
 			})
 
-			-- Vitality gates keybinds attached to a toggle so they only fire while that
-			-- toggle is enabled (module-key pattern). A bind that toggles the module
-			-- itself has to live on its own row.
-			-- Vitality also fires the keybind callback once at init (state = false);
-			-- driving the toggle with the passed state keeps that first call harmless.
-			FlySection:Label({ Name = "fly keybind" }):Keybind({
+			FlyToggle:Keybind({
 				Name = "fly",
 				Flag = "fly_bind",
 				Default = Enum.KeyCode.F,
@@ -8153,32 +8507,39 @@ do --// UI Source
 				end,
 			})
 
-			FlySection:Slider({
+			CharacterSection:Slider({
 				Name = "fly speed",
 				Flag = "fly_speed",
 				Min = 10, Max = 300, Default = 50, Decimals = 0.1, Suffix = " sps",
 				Callback = function(v) Config.FlySpeed = v end,
 			})
 
-			local WalkSection = MovementPage:Section({ Name = "walkspeed", Side = 1 })
-
-			local WalkToggle = WalkSection:Toggle({
+			local WalkToggle = CharacterSection:Toggle({
 				Name = "walkspeed",
 				Flag = "walkspeed_enabled",
 				Default = false,
 				Callback = function(v) Config.WalkSpeedEnabled = v end,
 			})
 
-			WalkSection:Slider({
+			WalkToggle:Keybind({
+				Name = "walkspeed",
+				Flag = "walkspeed_bind",
+				Default = Enum.KeyCode.H,
+				Mode = "Toggle",
+				Callback = function(state)
+					if Unloaded then return end
+					WalkToggle:Set(state == true)
+				end,
+			})
+
+			CharacterSection:Slider({
 				Name = "walk speed",
 				Flag = "walk_speed",
 				Min = 16, Max = 100, Default = 16, Decimals = 0.1, Suffix = " sps",
 				Callback = function(v) Config.WalkSpeed = v end,
 			})
 
-			local NoclipSection = MovementPage:Section({ Name = "noclip", Side = 1 })
-
-			local NoclipToggle = NoclipSection:Toggle({
+			local NoclipToggle = CharacterSection:Toggle({
 				Name = "noclip",
 				Flag = "noclip",
 				Default = false,
@@ -8188,11 +8549,98 @@ do --// UI Source
 				end,
 			})
 
-			NoclipSection:Button({
+			NoclipToggle:Keybind({
+				Name = "noclip",
+				Flag = "noclip_bind",
+				Default = Enum.KeyCode.N,
+				Mode = "Toggle",
+				Callback = function(state)
+					if Unloaded then return end
+					NoclipToggle:Set(state == true)
+				end,
+			})
+
+			local InfJumpToggle = CharacterSection:Toggle({
+				Name = "infinite jump",
+				Flag = "infinite_jump",
+				Default = false,
+				Callback = function(v) SetInfiniteJump(v) end,
+			})
+
+			InfJumpToggle:Keybind({
+				Name = "infinite jump",
+				Flag = "infinite_jump_bind",
+				Default = Enum.KeyCode.J,
+				Mode = "Toggle",
+				Callback = function(state)
+					if Unloaded then return end
+					InfJumpToggle:Set(state == true)
+				end,
+			})
+
+			local JumpFlyToggle = CharacterSection:Toggle({
+				Name = "jump fly",
+				Flag = "jump_fly",
+				Default = false,
+				Tooltip = "a jump throws you forward along the camera instead of straight up",
+				Callback = function(v) SetJumpFly(v) end,
+			})
+
+			JumpFlyToggle:Keybind({
+				Name = "jump fly",
+				Flag = "jump_fly_bind",
+				Default = Enum.KeyCode.G,
+				Mode = "Toggle",
+				Callback = function(state)
+					if Unloaded then return end
+					JumpFlyToggle:Set(state == true)
+				end,
+			})
+
+			CharacterSection:Slider({
+				Name = "launch speed",
+				Flag = "jump_fly_speed",
+				Min = 20, Max = 300, Default = 90, Decimals = 0.1, Suffix = " sps",
+				Callback = function(v) Extra.JumpFlySpeed = v end,
+			})
+
+			CharacterSection:Slider({
+				Name = "glide time",
+				Flag = "jump_fly_time",
+				Min = 0.1, Max = 2, Default = 0.55, Decimals = 0.05, Suffix = "s",
+				Callback = function(v) Extra.JumpFlyTime = v end,
+			})
+
+			CharacterSection:Toggle({
+				Name = "anti afk",
+				Flag = "anti_afk",
+				Default = false,
+				Tooltip = "never gets kicked for being idle",
+				Callback = function(v) SetAntiAfk(v) end,
+			})
+
+			CharacterSection:Toggle({
+				Name = "instant interact",
+				Flag = "instant_prompts",
+				Default = false,
+				Tooltip = "sets every proximity prompt hold time to zero",
+				Callback = function(v) SetInstantPrompts(v) end,
+			})
+
+			CharacterSection:Toggle({
+				Name = "ctrl + click teleport",
+				Flag = "click_teleport",
+				Default = false,
+				Tooltip = "hold left ctrl and click anywhere to teleport there",
+				Callback = function(v) SetClickTeleport(v) end,
+			})
+
+			CharacterSection:Button({
 				Name = "reset character",
 				Callback = resetCharacter,
 			})
 
+			-- ---------------- Movement: area teleports ----------------
 			local AreaSection = MovementPage:Section({ Name = "area teleports", Side = 1 })
 
 			AreaSection:Dropdown({
@@ -8216,7 +8664,7 @@ do --// UI Source
 				end,
 			})
 
-			-- ---------------- Auto pickup (right) ----------------
+			-- ---------------- Movement: auto pickup (right) ----------------
 			local PickupSection = MovementPage:Section({ Name = "auto pickup", Side = 2 })
 
 			PickupSection:Toggle({
@@ -8244,7 +8692,7 @@ do --// UI Source
 				end,
 			})
 
-			-- ---------------- Trinket teleport (right) ----------------
+			-- ---------------- Movement: trinket teleport (right) ----------------
 			local TrinketTPSection = MovementPage:Section({ Name = "trinket teleport", Side = 2 })
 
 			TrinketTPSection:Dropdown({
@@ -8301,7 +8749,41 @@ do --// UI Source
 				pcall(function() TrinketTPDropdown:Refresh(names) end)
 			end
 
-			-- ---------------- Visuals ----------------
+			-- ---------------- Movement: waypoints (right) ----------------
+			local WaypointSection = MovementPage:Section({ Name = "waypoints", Side = 2 })
+
+			WaypointSection:Textbox({
+				Name = "name",
+				Flag = "waypoint_name",
+				Placeholder = "waypoint name",
+				Callback = function(text) WaypointName = text end,
+			})
+
+			WaypointSection:Button({
+				Name = "save current position",
+				Callback = function() saveWaypoint(WaypointName) end,
+			})
+
+			WaypointDropdown = WaypointSection:Dropdown({
+				Name = "saved waypoints",
+				Flag = "waypoint_list",
+				Items = {},
+				Default = "",
+				Multi = false,
+				Callback = function(v) SelectedWaypoint = v end,
+			})
+
+			WaypointSection:Button({
+				Name = "teleport to waypoint",
+				Callback = function() teleportToWaypoint(SelectedWaypoint) end,
+			})
+
+			WaypointSection:Button({
+				Name = "delete waypoint",
+				Callback = function() deleteWaypoint(SelectedWaypoint) end,
+			})
+
+			-- ---------------- Visuals: world ----------------
 			local WorldSection = VisualsPage:Section({ Name = "world", Side = 1 })
 
 			WorldSection:Toggle({
@@ -8334,6 +8816,27 @@ do --// UI Source
 				end,
 			})
 
+			WorldSection:Toggle({
+				Name = "remove shadows",
+				Flag = "no_shadows",
+				Default = false,
+				Callback = function(v) SetNoShadows(v) end,
+			})
+
+			WorldSection:Slider({
+				Name = "brightness",
+				Flag = "brightness",
+				Min = 0, Max = 10, Default = 2, Decimals = 0.1, Suffix = "",
+				Callback = function(v) SetBrightness(v) end,
+			})
+
+			WorldSection:Label({ Name = "ambient color" }):Colorpicker({
+				Flag = "ambient_color",
+				Default = Color3.fromRGB(255, 255, 255),
+				Callback = function(c) SetAmbientColor(c) end,
+			})
+
+			-- ---------------- Visuals: trinket esp ----------------
 			local DropESPSection = VisualsPage:Section({ Name = "trinket esp", Side = 1 })
 
 			DropESPSection:Toggle({
@@ -8350,18 +8853,56 @@ do --// UI Source
 				Callback = function(v) Config.ESPDistance = v end,
 			})
 
-			DropESPSection:Dropdown({
-				Name = "filter by rarity",
-				Flag = "drop_rarity",
-				Items = { "Common", "Uncommon", "Rare", "Elite", "Legendary", "Mythic", "Relics", "Tomes" },
-				Default = { "Common", "Uncommon", "Rare", "Elite", "Legendary", "Mythic", "Relics", "Tomes" },
-				Multi = true,
-				Callback = function(selected)
-					applyRaritySelection(selected, DropRarityFilter)
-				end,
+			DropESPSection:Toggle({
+				Name = "show distance",
+				Flag = "drop_distance_text",
+				Default = true,
+				Callback = function(v) Extra.DropDistance = v end,
 			})
 
-			-- ---------------- Player ESP (sensoryESP) ----------------
+			DropESPSection:Toggle({
+				Name = "tracers",
+				Flag = "drop_tracers",
+				Default = false,
+				Callback = function(v) Extra.DropTracers = v end,
+			}):Colorpicker({
+				Flag = "drop_tracer_color",
+				Default = Color3.fromRGB(181, 32, 55),
+				Callback = function(c) Extra.TracerColor = c end,
+			})
+
+			DropESPSection:Slider({
+				Name = "text size",
+				Flag = "drop_text_size",
+				Min = 10, Max = 24, Default = 13, Decimals = 0.1, Suffix = " px",
+				Callback = function(v) Extra.DropTextSize = v end,
+			})
+
+			-- Rarity filter: one toggle per rarity with its own colorpicker next to it,
+			-- instead of a multi-select dropdown. The ESP reads both tables every frame,
+			-- so flipping a toggle or picking a colour is live.
+			for _, Rarity in ipairs(RARITY_ORDER) do
+				local Key = Rarity
+
+				local RarityToggle = DropESPSection:Toggle({
+					Name = string.lower(Key),
+					Flag = "drop_rarity_" .. string.lower(Key),
+					Default = DropRarityFilter[Key] == true,
+					Callback = function(v)
+						DropRarityFilter[Key] = v
+					end,
+				})
+
+				RarityToggle:Colorpicker({
+					Flag = "drop_rarity_color_" .. string.lower(Key),
+					Default = RARITY_COLORS[Key] or Color3.fromRGB(255, 255, 255),
+					Callback = function(c)
+						RARITY_COLORS[Key] = c
+					end,
+				})
+			end
+
+			-- ---------------- Visuals: player esp (sensoryESP) ----------------
 			local PlayerESPSection = VisualsPage:Section({ Name = "player esp", Side = 2 })
 
 			PlayerESPSection:Toggle({
@@ -8484,7 +9025,67 @@ do --// UI Source
 				end,
 			})
 
-			-- ---------------- Combat ----------------
+			-- ---------------- Visuals: camera ----------------
+			local CameraSection = VisualsPage:Section({ Name = "camera", Side = 2 })
+
+			CameraSection:Toggle({
+				Name = "lock fov",
+				Flag = "fov_lock",
+				Default = false,
+				Callback = function(v) SetFovLock(v) end,
+			})
+
+			CameraSection:Slider({
+				Name = "fov",
+				Flag = "fov",
+				Min = 40, Max = 120, Default = 70, Decimals = 0.1, Suffix = " deg",
+				Callback = function(v) SetFov(v) end,
+			})
+
+			CameraSection:Slider({
+				Name = "max zoom",
+				Flag = "max_zoom",
+				Min = 16, Max = 1000, Default = 128, Decimals = 0.1, Suffix = " studs",
+				Callback = function(v) SetMaxZoom(v) end,
+			})
+
+			-- ---------------- Combat: kill aura ----------------
+			local AuraSection = CombatPage:Section({ Name = "kill aura", Side = 1 })
+
+			local AuraToggle = AuraSection:Toggle({
+				Name = "kill aura",
+				Flag = "kill_aura",
+				Default = false,
+				Tooltip = "kills every npc inside the radius on a timer",
+				Callback = function(v) Extra.KillAura = v end,
+			})
+
+			AuraToggle:Keybind({
+				Name = "kill aura",
+				Flag = "kill_aura_bind",
+				Default = Enum.KeyCode.K,
+				Mode = "Toggle",
+				Callback = function(state)
+					if Unloaded then return end
+					AuraToggle:Set(state == true)
+				end,
+			})
+
+			AuraSection:Slider({
+				Name = "radius",
+				Flag = "kill_aura_radius",
+				Min = 10, Max = 200, Default = 60, Decimals = 0.1, Suffix = " studs",
+				Callback = function(v) Extra.KillAuraRadius = v end,
+			})
+
+			AuraSection:Slider({
+				Name = "delay",
+				Flag = "kill_aura_delay",
+				Min = 0.05, Max = 2, Default = 0.25, Decimals = 0.01, Suffix = "s",
+				Callback = function(v) Extra.KillAuraDelay = v end,
+			})
+
+			-- ---------------- Combat: instant kill ----------------
 			local KillSection = CombatPage:Section({ Name = "instant kill", Side = 1 })
 
 			KillDropdown = KillSection:Dropdown({
@@ -8527,12 +9128,14 @@ do --// UI Source
 				end,
 			})
 
+			-- ---------------- Combat: exploit ----------------
 			local ExploitSection = CombatPage:Section({ Name = "exploit", Side = 2 })
 
 			ExploitSection:Toggle({
 				Name = "block updateinsanity",
 				Flag = "block_insanity",
 				Default = false,
+				Tooltip = "drops the insanity remote so the meter stops climbing",
 				Callback = function(v)
 					Config.BlockInsanity = v
 					if v and not hooksInstalled then
@@ -8541,263 +9144,7 @@ do --// UI Source
 				end,
 			})
 
-			ExploitSection:Button({
-				Name = "blocked calls count",
-				Callback = function()
-					notify("blocked insanity calls: " .. blockedCount, 3)
-				end,
-			})
-
-			ExploitSection:Button({
-				Name = "unload",
-				Callback = UnloadScript,
-			})
-
-			-- ---------------- Movement: jumps ----------------
-			local JumpSection = MovementPage:Section({ Name = "jumps", Side = 1 })
-
-			local InfJumpToggle = JumpSection:Toggle({
-				Name = "infinite jump",
-				Flag = "infinite_jump",
-				Default = false,
-				Callback = function(v) SetInfiniteJump(v) end,
-			})
-
-			JumpSection:Label({ Name = "infinite jump keybind" }):Keybind({
-				Name = "infinite jump",
-				Flag = "infinite_jump_bind",
-				Default = Enum.KeyCode.J,
-				Mode = "Toggle",
-				Callback = function(state)
-					if Unloaded then return end
-					InfJumpToggle:Set(state == true)
-				end,
-			})
-
-			JumpSection:Toggle({
-				Name = "custom jump power",
-				Flag = "jump_power_enabled",
-				Default = false,
-				Callback = function(v)
-					Extra.JumpPowerEnabled = v
-					if not v then
-						local hum = getHumanoid()
-						if hum then pcall(function() hum.JumpPower = 50 end) end
-					end
-				end,
-			})
-
-			JumpSection:Slider({
-				Name = "jump power",
-				Flag = "jump_power",
-				Min = 50, Max = 300, Default = 50, Decimals = 0.1, Suffix = " jp",
-				Callback = function(v) Extra.JumpPower = v end,
-			})
-
-			-- ---------------- Movement: utility ----------------
-			local UtilitySection = MovementPage:Section({ Name = "utility", Side = 1 })
-
-			UtilitySection:Toggle({
-				Name = "anti afk",
-				Flag = "anti_afk",
-				Default = false,
-				Tooltip = "never gets kicked for being idle",
-				Callback = function(v) SetAntiAfk(v) end,
-			})
-
-			UtilitySection:Toggle({
-				Name = "instant interact",
-				Flag = "instant_prompts",
-				Default = false,
-				Tooltip = "sets every proximity prompt hold time to zero",
-				Callback = function(v) SetInstantPrompts(v) end,
-			})
-
-			UtilitySection:Toggle({
-				Name = "ctrl + click teleport",
-				Flag = "click_teleport",
-				Default = false,
-				Tooltip = "hold left ctrl and click anywhere to teleport there",
-				Callback = function(v) SetClickTeleport(v) end,
-			})
-
-			-- keybinds for the two modules that shipped without one
-			NoclipSection:Label({ Name = "noclip keybind" }):Keybind({
-				Name = "noclip",
-				Flag = "noclip_bind",
-				Default = Enum.KeyCode.N,
-				Mode = "Toggle",
-				Callback = function(state)
-					if Unloaded then return end
-					NoclipToggle:Set(state == true)
-				end,
-			})
-
-			WalkSection:Label({ Name = "walkspeed keybind" }):Keybind({
-				Name = "walkspeed",
-				Flag = "walkspeed_bind",
-				Default = Enum.KeyCode.H,
-				Mode = "Toggle",
-				Callback = function(state)
-					if Unloaded then return end
-					WalkToggle:Set(state == true)
-				end,
-			})
-
-			-- ---------------- Movement: waypoints ----------------
-			local WaypointSection = MovementPage:Section({ Name = "waypoints", Side = 2 })
-
-			WaypointSection:Textbox({
-				Name = "name",
-				Flag = "waypoint_name",
-				Placeholder = "waypoint name",
-				Callback = function(text) WaypointName = text end,
-			})
-
-			WaypointSection:Button({
-				Name = "save current position",
-				Callback = function() saveWaypoint(WaypointName) end,
-			})
-
-			WaypointDropdown = WaypointSection:Dropdown({
-				Name = "saved waypoints",
-				Flag = "waypoint_list",
-				Items = {},
-				Default = "",
-				Multi = false,
-				Callback = function(v) SelectedWaypoint = v end,
-			})
-
-			WaypointSection:Button({
-				Name = "teleport to waypoint",
-				Callback = function() teleportToWaypoint(SelectedWaypoint) end,
-			})
-
-			WaypointSection:Button({
-				Name = "delete waypoint",
-				Callback = function() deleteWaypoint(SelectedWaypoint) end,
-			})
-
-			-- ---------------- Visuals: lighting ----------------
-			local LightingSection = VisualsPage:Section({ Name = "lighting", Side = 1 })
-
-			LightingSection:Slider({
-				Name = "brightness",
-				Flag = "brightness",
-				Min = 0, Max = 10, Default = 2, Decimals = 0.1, Suffix = "",
-				Callback = function(v) SetBrightness(v) end,
-			})
-
-			LightingSection:Label({ Name = "ambient color" }):Colorpicker({
-				Flag = "ambient_color",
-				Default = Color3.fromRGB(255, 255, 255),
-				Callback = function(c) SetAmbientColor(c) end,
-			})
-
-			LightingSection:Toggle({
-				Name = "remove shadows",
-				Flag = "no_shadows",
-				Default = false,
-				Callback = function(v) SetNoShadows(v) end,
-			})
-
-			-- ---------------- Visuals: camera ----------------
-			local CameraSection = VisualsPage:Section({ Name = "camera", Side = 1 })
-
-			CameraSection:Toggle({
-				Name = "lock fov",
-				Flag = "fov_lock",
-				Default = false,
-				Callback = function(v) SetFovLock(v) end,
-			})
-
-			CameraSection:Slider({
-				Name = "fov",
-				Flag = "fov",
-				Min = 40, Max = 120, Default = 70, Decimals = 0.1, Suffix = " deg",
-				Callback = function(v) SetFov(v) end,
-			})
-
-			CameraSection:Slider({
-				Name = "max zoom",
-				Flag = "max_zoom",
-				Min = 16, Max = 1000, Default = 128, Decimals = 0.1, Suffix = " studs",
-				Callback = function(v) SetMaxZoom(v) end,
-			})
-
-			-- ---------------- Visuals: trinket esp extras ----------------
-			DropESPSection:Toggle({
-				Name = "show distance",
-				Flag = "drop_distance_text",
-				Default = true,
-				Callback = function(v) Extra.DropDistance = v end,
-			})
-
-			DropESPSection:Toggle({
-				Name = "tracers",
-				Flag = "drop_tracers",
-				Default = false,
-				Callback = function(v) Extra.DropTracers = v end,
-			}):Colorpicker({
-				Flag = "drop_tracer_color",
-				Default = Color3.fromRGB(181, 32, 55),
-				Callback = function(c) Extra.TracerColor = c end,
-			})
-
-			DropESPSection:Slider({
-				Name = "text size",
-				Flag = "drop_text_size",
-				Min = 10, Max = 24, Default = 13, Decimals = 0.1, Suffix = " px",
-				Callback = function(v) Extra.DropTextSize = v end,
-			})
-
-			-- ---------------- Combat: kill aura ----------------
-			local AuraSection = CombatPage:Section({ Name = "kill aura", Side = 1 })
-
-			local AuraToggle = AuraSection:Toggle({
-				Name = "kill aura",
-				Flag = "kill_aura",
-				Default = false,
-				Tooltip = "kills every npc inside the radius on a timer",
-				Callback = function(v) Extra.KillAura = v end,
-			})
-
-			AuraSection:Label({ Name = "kill aura keybind" }):Keybind({
-				Name = "kill aura",
-				Flag = "kill_aura_bind",
-				Default = Enum.KeyCode.K,
-				Mode = "Toggle",
-				Callback = function(state)
-					if Unloaded then return end
-					AuraToggle:Set(state == true)
-				end,
-			})
-
-			AuraSection:Slider({
-				Name = "radius",
-				Flag = "kill_aura_radius",
-				Min = 10, Max = 200, Default = 60, Decimals = 0.1, Suffix = " studs",
-				Callback = function(v) Extra.KillAuraRadius = v end,
-			})
-
-			AuraSection:Slider({
-				Name = "delay",
-				Flag = "kill_aura_delay",
-				Min = 0.05, Max = 2, Default = 0.25, Decimals = 0.01, Suffix = "s",
-				Callback = function(v) Extra.KillAuraDelay = v end,
-			})
-
-			-- ---------------- Combat: exploit extras ----------------
-			ExploitSection:Slider({
-				Name = "fps cap",
-				Flag = "fps_cap",
-				Min = 30, Max = 360, Default = 240, Decimals = 0.1, Suffix = " fps",
-				Callback = function(v) SetFpsCap(v) end,
-			})
-
 			-- ---------------- Players ----------------
-			local PlayersPage = Window:Page({ Name = "players" })
-
 			local PlayersSection = PlayersPage:Section({ Name = "players", Side = 1 })
 
 			PlayerDropdown = PlayersSection:Dropdown({
@@ -8882,6 +9229,11 @@ do --// UI Source
 				end,
 			})
 
+			InterfaceSection:Button({
+				Name = "unload script",
+				Callback = UnloadScript,
+			})
+
 			-- ---------------- Players: server ----------------
 			local ServerSection = PlayersPage:Section({ Name = "server", Side = 2 })
 
@@ -8958,6 +9310,7 @@ do --// UI Source
 			log("juanitahaxx loaded | menu key: X | fly key: F", "Info")
 			log("insanity hooks: " .. (hooksInstalled and "installed" or "unavailable on this executor"), hooksInstalled and "Info" or "Warning")
 			notify("juanitahaxx loaded", 3)
+
 		end
 		--#endregion
 	end
