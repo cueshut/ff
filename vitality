@@ -894,6 +894,10 @@ do --// UI Source
 		-- and a 2px bar is drawn over the right edge of the scroller instead. It
 		-- carries the same accent gradient as the slider fill, soft mid seam and all,
 		-- so every scroller in the UI reads like a miniature slider.
+		-- Bumped every time the shipped file changes, so a stale copy is obvious:
+		-- print(Library.Build) tells you straight away which build is running.
+		Library.Build = "r19-topbar-shadow"
+
 		Library.Scrollbars = { }
 
 		Library.ScrollbarGradient = function(Self, Item)
@@ -944,8 +948,24 @@ do --// UI Source
 
 			Target.ScrollBarThickness = 0
 
-			-- No track behind the bar. A permanent dark strip reads as a stray black
-			-- border whenever there is nothing to scroll, so only the accent bar draws.
+			-- Optional fully black track behind the bar. It is only built when asked for
+			-- and only shown while the bar itself is shown, so an idle scroller still
+			-- never leaves a stray dark strip sitting in the frame.
+			local TrackFrame
+
+			if Params.Track then
+				TrackFrame = Library:Create("Frame", {
+					Name = "\0",
+					Parent = Holder,
+					BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+					BackgroundTransparency = 0,
+					BorderSizePixel = 0,
+					Visible = false,
+					ZIndex = Layer,
+					Size = UDim2.fromOffset(Thickness, 0)
+				}).Instance
+			end
+
 			local Bar = Library:Create("Frame", {
 				Name = "\0",
 				Parent = Holder,
@@ -962,6 +982,7 @@ do --// UI Source
 				Scroll = Target,
 				Holder = Holder,
 				Bar = Bar.Instance,
+				Track = TrackFrame,
 				Thickness = Thickness,
 				Right = Right,
 				Top = Top,
@@ -993,6 +1014,10 @@ do --// UI Source
 				if not (Scroll and Scroll.Parent and Entry.Holder and Entry.Holder.Parent) then
 					pcall(function()
 						Entry.Bar:Destroy()
+
+						if Entry.Track then
+							Entry.Track:Destroy()
+						end
 					end)
 
 					table.remove(Library.Scrollbars, Index)
@@ -1007,6 +1032,10 @@ do --// UI Source
 						-- reaches the page column underneath instead.
 						Entry.Bar.Visible = false
 						Scroll.ScrollingEnabled = false
+
+						if Entry.Track then
+							Entry.Track.Visible = false
+						end
 					else
 						Scroll.ScrollingEnabled = true
 
@@ -1020,6 +1049,12 @@ do --// UI Source
 						local MaxBar = math.max(Track - 6, MinBar)
 						local BarHeight = math.clamp(Track * (View.Y / Canvas.Y), MinBar, MaxBar)
 						local Progress = math.clamp(Scroll.CanvasPosition.Y / Range, 0, 1)
+
+						if Entry.Track then
+							Entry.Track.Size = UDim2.fromOffset(Entry.Thickness, Track)
+							Entry.Track.Position = UDim2.new(1, -(Entry.Right + Entry.Thickness), 0, Entry.Top)
+							Entry.Track.Visible = true
+						end
 
 						Entry.Bar.Size = UDim2.fromOffset(Entry.Thickness, BarHeight)
 						Entry.Bar.Position = UDim2.new(1, -(Entry.Right + Entry.Thickness), 0, Entry.Top + (Track - BarHeight) * Progress)
@@ -3985,7 +4020,7 @@ do --// UI Source
 					Name = "\0",
 					Parent = Items["MainFrame"].Instance,
 					BackgroundTransparency = 1,
-					Position = UDim2.new(0, 6, 0, 27),
+					Position = UDim2.new(0, 6, 0, 33),
 					Size = UDim2.new(1, -12, 0, 22),
 					BorderSizePixel = 0
 				})
@@ -4002,8 +4037,8 @@ do --// UI Source
 				Items["Content"] = Library:Create("Frame", {
 					Name = "\0",
 					Parent = Items["MainFrame"].Instance,
-					Position = UDim2.new(0, 8, 0, 52),
-					Size = UDim2.new(1, -16, 1, -60),
+					Position = UDim2.new(0, 8, 0, 58),
+					Size = UDim2.new(1, -16, 1, -66),
 					BorderSizePixel = 0,
 					BackgroundColor3 = Library.Theme["Content"]
 				}):AddToTheme({BackgroundColor3 = 'Content'})
@@ -4045,12 +4080,14 @@ do --// UI Source
 
 				-- Header strip inside the frame: red pulse icon + title text
 				-- (reference header is a clean full-width row, not a hanging box)
+				-- 29 tall (was 23): six more pixels of header, with the tab row and content
+				-- box pushed down by the same six so the bottom margin is unchanged.
 				Items["Title"] = Library:Create("Frame", {
 					Name = "\0",
 					Parent = Items["MainFrame"].Instance,
 					BorderSizePixel = 0,
 					Position = UDim2.new(0, 0, 0, 1),
-					Size = UDim2.new(1, 0, 0, 23),
+					Size = UDim2.new(1, 0, 0, 29),
 					ZIndex = 2,
 					BackgroundColor3 = Library.Theme["Inline"]
 				}):AddToTheme({BackgroundColor3 = 'Inline'})
@@ -4065,6 +4102,32 @@ do --// UI Source
 					BorderSizePixel = 0,
 					BackgroundColor3 = Library.Theme["Outline 1"]
 				}):AddToTheme({BackgroundColor3 = 'Outline 1'})
+
+				-- Drop shadow under the header: a 6px black fade spilling over the top of the
+				-- tab row, so the taller bar reads as sitting above the page instead of being
+				-- painted onto it. Active = false so it can never eat a click on a tab.
+				Items["TitleShadow"] = Library:Create("Frame", {
+					Name = "\0",
+					Parent = Items["MainFrame"].Instance,
+					Active = false,
+					Position = UDim2.new(0, 0, 0, 30),
+					Size = UDim2.new(1, 0, 0, 6),
+					BorderSizePixel = 0,
+					ZIndex = 5,
+					BackgroundTransparency = 0.45,
+					BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+				})
+
+				Library:Create("UIGradient", {
+					Name = "\0",
+					Parent = Items["TitleShadow"].Instance,
+					Rotation = 90,
+					Transparency = NumberSequence.new{
+						NumberSequenceKeypoint.new(0, 0),
+						NumberSequenceKeypoint.new(0.55, 0.65),
+						NumberSequenceKeypoint.new(1, 1)
+					}
+				})
 
 				-- Red vitality pulse icon built from bars (no font glyph needed)
 				Items["Icon"] = Library:Create("Frame", {
@@ -4533,7 +4596,7 @@ do --// UI Source
 					Parent = Items["LeftColumn"].Instance,
 					PaddingTop = UDim.new(0, 6),
 					PaddingBottom = UDim.new(0, 6),
-					PaddingRight = UDim.new(0, 2),
+					PaddingRight = UDim.new(0, 3),
 					PaddingLeft = UDim.new(0, 3)
 				})
 
@@ -4565,7 +4628,7 @@ do --// UI Source
 					PaddingTop = UDim.new(0, 6),
 					PaddingBottom = UDim.new(0, 6),
 					PaddingRight = UDim.new(0, 3),
-					PaddingLeft = UDim.new(0, 2)
+					PaddingLeft = UDim.new(0, 3)
 				})
 
 				Library:Create("UIListLayout", {
@@ -4771,58 +4834,57 @@ do --// UI Source
 					Parent = Items["Text"].Instance
 				})
 
-				if FullHeight then
-					Items["Content"] = Library:Create("ScrollingFrame", {
-						Name = "\0",
-						Parent = Items["Section"].Instance,
-						Active = true,
-						BackgroundTransparency = 1,
-						Position = UDim2.new(0, 4, 0, 30),
-						Size = UDim2.new(1, -14, 1, -36),
-						BorderSizePixel = 0,
-						CanvasSize = UDim2.new(0, 0, 0, 0),
-						AutomaticCanvasSize = Enum.AutomaticSize.Y,
-						ScrollBarThickness = 2,
-						ScrollBarImageColor3 = Library.Theme["Accent"],
-						ScrollBarImageTransparency = 0
-					}):AddToTheme({ScrollBarImageColor3 = 'Accent'})
+				Items["Content"] = Library:Create("ScrollingFrame", {
+					Name = "\0",
+					Parent = Items["Section"].Instance,
+					Active = true,
+					BackgroundTransparency = 1,
+					Position = UDim2.new(0, 4, 0, 30),
+					Size = FullHeight and UDim2.new(1, -10, 1, -36) or UDim2.new(1, -10, 0, 0),
+					BorderSizePixel = 0,
+					CanvasSize = UDim2.new(0, 0, 0, 0),
+					AutomaticCanvasSize = Enum.AutomaticSize.Y,
+					ScrollingDirection = Enum.ScrollingDirection.Y,
+					ElasticBehavior = Enum.ElasticBehavior.Never,
+					ScrollBarThickness = 0
+				})
 
-					Library:Scrollbar(Items["Content"], {Parent = Items["Section"], Top = 30, Right = 4})
-				else
-					-- Still sized by its elements, but it is a scroller with a hard ceiling:
-					-- past MaxHeight the toggles, keybinds and sliders inside scroll and the
-					-- bar appears in the section's own right-hand gutter.
-					Items["Content"] = Library:Create("ScrollingFrame", {
-						Name = "\0",
-						Parent = Items["Section"].Instance,
-						Active = true,
-						BackgroundTransparency = 1,
-						Position = UDim2.new(0, 4, 0, 30),
-						Size = UDim2.new(1, -14, 0, 0),
-						BorderSizePixel = 0,
-						CanvasSize = UDim2.new(0, 0, 0, 0),
-						AutomaticCanvasSize = Enum.AutomaticSize.Y,
-						AutomaticSize = Enum.AutomaticSize.Y,
-						ScrollingDirection = Enum.ScrollingDirection.Y,
-						ElasticBehavior = Enum.ElasticBehavior.Never,
-						ScrollBarThickness = 0
-					})
-
-					Library:Create("UISizeConstraint", {
-						Name = "\0",
-						Parent = Items["Content"].Instance,
-						MaxSize = Vector2.new(math.huge, MaxHeight)
-					})
-
-					Library:Scrollbar(Items["Content"], {Parent = Items["Section"], Top = 30, Right = 4})
-				end
-
-				Library:Create("UIListLayout", {
+				Items["ContentLayout"] = Library:Create("UIListLayout", {
 					Name = "\0",
 					Parent = Items["Content"].Instance,
 					Padding = UDim.new(0, 4),
 					SortOrder = Enum.SortOrder.LayoutOrder
 				})
+
+				-- 4px of air under the last element. Every element box draws its border ring
+				-- outside its own frame, so the bottom row used to land its border on the
+				-- section border and get shaved off by the scroller clip. This also gives the
+				-- canvas somewhere to end, so scrolling to the bottom never cuts a box.
+				Items["ContentPadding"] = Library:Create("UIPadding", {
+					Name = "\0",
+					Parent = Items["Content"].Instance,
+					PaddingBottom = UDim.new(0, 4)
+				})
+
+				if not FullHeight then
+					-- The height is measured off the list layout instead of AutomaticSize. A
+					-- ScrollingFrame that sizes itself while its canvas also sizes itself fights
+					-- with its own scrollbar and never settles, which is why the ceiling never
+					-- took hold and the bar sat still. Measure the elements, clamp to MaxHeight.
+					local Layout = Items["ContentLayout"].Instance
+					local Content = Items["Content"].Instance
+
+					local function ResizeContent()
+						Content.Size = UDim2.new(1, -10, 0, math.min(Layout.AbsoluteContentSize.Y + 4, MaxHeight))
+					end
+
+					Library:Connect(Layout:GetPropertyChangedSignal("AbsoluteContentSize"), ResizeContent)
+					ResizeContent()
+				end
+
+				-- Right = 1 puts the bar hard against the section border instead of floating
+				-- a few pixels inside it, and Track draws the black strip behind it.
+				Library:Scrollbar(Items["Content"], {Parent = Items["Section"], Top = 30, Right = 1, Bottom = 6, Track = true})
 
 				if FullHeight then
 					Library:Create("UIPadding", {
@@ -5872,11 +5934,13 @@ do --// UI Source
 			end
 
 			local Items = { } do
+				-- 42 tall, not 40: the box below is inset 2px from the bottom so its border
+				-- ring stays inside the element instead of hanging into whatever is under it.
 				Items["Dropdown"] = Library:Create("Frame", {
 					Name = "\0",
 					Parent = Parent.Instance,
 					BackgroundTransparency = 1,
-					Size = UDim2.new(1, 0, 0, 40),
+					Size = UDim2.new(1, 0, 0, 42),
 					BorderSizePixel = 0
 				})
 
@@ -5911,7 +5975,7 @@ do --// UI Source
 					Text = "",
 					AutoButtonColor = false,
 					AnchorPoint = Vector2.new(0, 1),
-					Position = UDim2.new(0, 2, 1, 0),
+					Position = UDim2.new(0, 2, 1, -2),
 					Size = UDim2.new(1, -4, 0, 20),
 					BorderSizePixel = 0,
 					ClipsDescendants = true,
