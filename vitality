@@ -939,7 +939,12 @@ do --// UI Source
 
 			local Thickness = Params.Thickness or 2
 			local Inset = Params.Inset or 0
-			local Layer = Params.ZIndex or 50
+			-- Every section keeps a 6px gutter inside its right edge for the bar, so
+			-- callers nudge the bar into that gutter with Offset instead of pinning it
+			-- to the scroller edge. The default layer draws above page content but
+			-- below every popup, which keeps the bar off colorpickers and option lists.
+			local Offset = Params.Offset or 0
+			local Layer = Params.ZIndex or 3
 
 			Target.ScrollBarThickness = 0
 
@@ -972,7 +977,8 @@ do --// UI Source
 				Track = Track.Instance,
 				Bar = Bar.Instance,
 				Thickness = Thickness,
-				Inset = Inset
+				Inset = Inset,
+				Offset = Offset
 			}
 
 			table.insert(Library.Scrollbars, Entry)
@@ -1008,7 +1014,7 @@ do --// UI Source
 					local View = Scroll.AbsoluteSize
 					local Canvas = Scroll.AbsoluteCanvasSize
 
-					if not ScrollbarVisible(Scroll) or View.Y < 8 or Canvas.Y <= View.Y + 1 then
+					if not ScrollbarVisible(Scroll) or View.Y < 8 or Canvas.Y - View.Y < 6 then
 						Entry.Track.Visible = false
 						Entry.Bar.Visible = false
 					else
@@ -1023,9 +1029,13 @@ do --// UI Source
 
 						local Rel = Scroll.AbsolutePosition - Entry.Holder.AbsolutePosition
 						local Height = math.max(View.Y - Entry.Inset * 2, 1)
-						local BarHeight = math.clamp(Height * (View.Y / Canvas.Y), 14, Height)
+						-- Always leave a few pixels of travel. A bar that fills its whole track
+						-- reads as frozen even while the list is scrolling.
+						local MinBar = math.min(16, Height)
+						local MaxBar = math.max(Height - 6, MinBar)
+						local BarHeight = math.clamp(Height * (View.Y / Canvas.Y), MinBar, MaxBar)
 						local Progress = math.clamp(Scroll.CanvasPosition.Y / math.max(Canvas.Y - View.Y, 1), 0, 1)
-						local X = Rel.X + View.X - Entry.Thickness - PadX
+						local X = Rel.X + View.X + (Entry.Offset or 0) - Entry.Thickness - PadX
 						local Y = Rel.Y + Entry.Inset - PadY
 
 						Entry.Track.Size = UDim2.fromOffset(Entry.Thickness, Height)
@@ -1664,11 +1674,26 @@ do --// UI Source
 				return game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId)
 			end)
 
+			local Name
+
 			if Ok and type(Info) == "table" and Info.Name then
-				Library.GameName = tostring(Info.Name)
+				Name = tostring(Info.Name)
 			else
-				Library.GameName = "place " .. tostring(game.PlaceId)
+				Name = "place " .. tostring(game.PlaceId)
 			end
+
+			-- Roblox titles are packed with emoji and box drawing junk. Anything above
+			-- plain ASCII is dropped and the leftover spacing collapsed, so the
+			-- watermark shows a clean title.
+			Name = Name:gsub("[\128-\255]", "")
+			Name = Name:gsub("%s+", " ")
+			Name = Name:gsub("^%s*(.-)%s*$", "%1")
+
+			if Name == "" then
+				Name = "place " .. tostring(game.PlaceId)
+			end
+
+			Library.GameName = Name
 
 			return Library.GameName
 		end
@@ -2164,7 +2189,8 @@ do --// UI Source
 						FontFace = Library.Font,
 						TextSize = Library.FontSize,
 						Parent = NewItems["Holder"].Instance,
-						TextColor3 = Library.Theme["Inactive Text"],
+						-- The mode tag reads as part of the bind, so it carries the accent.
+						TextColor3 = Library.Theme["Accent"],
 						Text = "always",
 						AnchorPoint = Vector2.new(1, 0.5),
 						Size = UDim2.new(0, 0, 0, 18),
@@ -2172,7 +2198,7 @@ do --// UI Source
 						Position = UDim2.new(1, 0, 0.5, 0),
 						BorderSizePixel = 0,
 						AutomaticSize = Enum.AutomaticSize.X
-					}):AddToTheme({TextColor3 = 'Inactive Text'})
+					}):AddToTheme({TextColor3 = 'Accent'})
 
 					Library:Create("UIStroke", {
 						Name = "\0",
@@ -2594,7 +2620,7 @@ do --// UI Source
 					Name = "\0",
 					Parent = Items["Palette"].Instance,
 					Size = UDim2.new(0, 1, 0, 1),
-					BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+					BackgroundColor3 = Color3.fromRGB(0, 0, 0),
 					BorderSizePixel = 0
 				})
 
@@ -2603,7 +2629,7 @@ do --// UI Source
 					Parent = Items["PaletteDragger"].Instance,
 					ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 					LineJoinMode = Enum.LineJoinMode.Miter,
-					Color = Color3.fromRGB(6, 7, 7)
+					Color = Color3.fromRGB(0, 0, 0)
 				})
 
 				-- Vertical hue strip
@@ -2836,10 +2862,10 @@ do --// UI Source
 				Items["AnimateShadow"] = Library:Create("Frame", {
 					Name = "\0",
 					Parent = Items["SettingsPage"].Instance,
-					Position = UDim2.new(1, -12, 0, 4),
+					Position = UDim2.new(1, -11, 0, 5),
 					Size = UDim2.new(0, 13, 0, 13),
 					BorderSizePixel = 0,
-					ZIndex = 0,
+					ZIndex = 1,
 					BackgroundTransparency = 0.6,
 					BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 				})
@@ -2893,10 +2919,10 @@ do --// UI Source
 				Items["AnimationListShadow"] = Library:Create("Frame", {
 					Name = "\0",
 					Parent = Items["SettingsPage"].Instance,
-					Position = UDim2.new(0, 1, 0, 47),
+					Position = UDim2.new(0, 2, 0, 48),
 					Size = UDim2.new(1, 0, 0, 116),
 					BorderSizePixel = 0,
-					ZIndex = 0,
+					ZIndex = 1,
 					BackgroundTransparency = 0.6,
 					BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 				})
@@ -2971,8 +2997,18 @@ do --// UI Source
 
 					Row:OnHover(function()
 						RowNudge:Tween({PaddingLeft = UDim.new(0, 5)}, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out))
+
+						-- Same treatment as the dropdown options: the row brightens as the cursor
+						-- runs down the list, unless it is already the selected mode.
+						if Colorpicker.AnimationMode ~= Mode then
+							Row:Tween({TextColor3 = Library.Theme["Text"]})
+						end
 					end, function()
 						RowNudge:Tween({PaddingLeft = UDim.new(0, 0)}, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out))
+
+						if Colorpicker.AnimationMode ~= Mode then
+							Row:Tween({TextColor3 = Library.Theme["Inactive Text"]})
+						end
 					end)
 
 					Row:Connect("MouseButton1Down", function()
@@ -3114,8 +3150,11 @@ do --// UI Source
 			-- Keeps the palette dot and hue marker on the current colour. The animation
 			-- loop calls this every frame, so it writes the positions straight in rather
 			-- than tweening them, which is what makes Rainbow drag the dot smoothly.
-			function Colorpicker:UpdateDraggers()
-				local PaletteX = math.clamp(1 - Colorpicker.Saturation, 0, 0.99)
+			-- SweepX lets the animation loop drive the dot sideways. Hue only modes
+			-- leave saturation and value alone, so without it the marker would sit
+			-- still while the colour cycles past it.
+			function Colorpicker:UpdateDraggers(SweepX)
+				local PaletteX = math.clamp(SweepX or (1 - Colorpicker.Saturation), 0, 0.99)
 				local PaletteY = math.clamp(1 - Colorpicker.Value, 0, 0.99)
 				local HueY = math.clamp(Colorpicker.Hue, 0, 0.99)
 
@@ -3332,7 +3371,15 @@ do --// UI Source
 						Items["Palette"].Instance.BackgroundColor3 = Color3.fromHSV(Hue, 1, 1)
 						Items["Alpha"].Instance.BackgroundColor3 = Colorpicker.Color
 
-						Colorpicker:UpdateDraggers()
+						-- Hue driven modes sweep the dot across the square in step with the hue.
+						-- Value driven modes already ride it up and down the vertical axis.
+						local Sweep = nil
+
+						if Mode == "Rainbow" or Mode == "Oscillating" then
+							Sweep = Hue
+						end
+
+						Colorpicker:UpdateDraggers(Sweep)
 
 						Flags[Colorpicker.Flag] = {
 							Alpha = Colorpicker.Alpha,
@@ -4481,7 +4528,7 @@ do --// UI Source
 					Parent = Items["Page"].Instance,
 					FillDirection = Enum.FillDirection.Horizontal,
 					HorizontalFlex = Enum.UIFlexAlignment.Fill,
-					Padding = UDim.new(0, 4),
+					Padding = UDim.new(0, 5),
 					SortOrder = Enum.SortOrder.LayoutOrder
 				})
 
@@ -4498,15 +4545,15 @@ do --// UI Source
 					CanvasSize = UDim2.new(0, 0, 0, 0)
 				}):AddToTheme({ScrollBarImageColor3 = 'Accent'})
 
-				Library:Scrollbar(Items["LeftColumn"], {Inset = 6})
+				Library:Scrollbar(Items["LeftColumn"], {Inset = 6, Offset = -5})
 
 				Library:Create("UIPadding", {
 					Name = "\0",
 					Parent = Items["LeftColumn"].Instance,
 					PaddingTop = UDim.new(0, 6),
 					PaddingBottom = UDim.new(0, 6),
-					PaddingRight = UDim.new(0, 2),
-					PaddingLeft = UDim.new(0, 6)
+					PaddingRight = UDim.new(0, 0),
+					PaddingLeft = UDim.new(0, 3)
 				})
 
 				Library:Create("UIListLayout", {
@@ -4529,15 +4576,15 @@ do --// UI Source
 					CanvasSize = UDim2.new(0, 0, 0, 0)
 				}):AddToTheme({ScrollBarImageColor3 = 'Accent'})
 
-				Library:Scrollbar(Items["RightColumn"], {Inset = 6})
+				Library:Scrollbar(Items["RightColumn"], {Inset = 6, Offset = -8})
 
 				Library:Create("UIPadding", {
 					Name = "\0",
 					Parent = Items["RightColumn"].Instance,
 					PaddingTop = UDim.new(0, 6),
 					PaddingBottom = UDim.new(0, 6),
-					PaddingRight = UDim.new(0, 6),
-					PaddingLeft = UDim.new(0, 2)
+					PaddingRight = UDim.new(0, 3),
+					PaddingLeft = UDim.new(0, 0)
 				})
 
 				Library:Create("UIListLayout", {
@@ -4747,7 +4794,7 @@ do --// UI Source
 						Active = true,
 						BackgroundTransparency = 1,
 						Position = UDim2.new(0, 4, 0, 30),
-						Size = UDim2.new(1, -8, 1, -36),
+						Size = UDim2.new(1, -14, 1, -36),
 						BorderSizePixel = 0,
 						CanvasSize = UDim2.new(0, 0, 0, 0),
 						AutomaticCanvasSize = Enum.AutomaticSize.Y,
@@ -4756,14 +4803,14 @@ do --// UI Source
 						ScrollBarImageTransparency = 0
 					}):AddToTheme({ScrollBarImageColor3 = 'Accent'})
 
-					Library:Scrollbar(Items["Content"])
+					Library:Scrollbar(Items["Content"], {Parent = Items["Section"], Offset = 5})
 				else
 					Items["Content"] = Library:Create("Frame", {
 						Name = "\0",
 						Parent = Items["Section"].Instance,
 						BackgroundTransparency = 1,
 						Position = UDim2.new(0, 4, 0, 30),
-						Size = UDim2.new(1, -8, 0, 0),
+						Size = UDim2.new(1, -14, 0, 0),
 						BorderSizePixel = 0,
 						AutomaticSize = Enum.AutomaticSize.Y
 					})
@@ -4780,7 +4827,7 @@ do --// UI Source
 					Library:Create("UIPadding", {
 						Name = "\0",
 						Parent = Items["Content"].Instance,
-						PaddingRight = UDim.new(0, 8),
+						PaddingRight = UDim.new(0, 0),
 						PaddingBottom = UDim.new(0, 6)
 					})
 				end
@@ -5930,7 +5977,7 @@ do --// UI Source
 				Items["Arrow"] = Library:Create("TextLabel", {
 					Name = "\0",
 					FontFace = Library.Font,
-					TextSize = 9,
+					TextSize = 8,
 					Parent = Items["RealDropdown"].Instance,
 					RichText = true,
 					TextColor3 = Library.Theme["Text"],
@@ -6031,7 +6078,7 @@ do --// UI Source
 					ZIndex = 2
 				}):AddToTheme({ScrollBarImageColor3 = 'Accent'})
 
-				Library:Scrollbar(Items["OptionScroll"], {ZIndex = 250})
+				Library:Scrollbar(Items["OptionScroll"], {ZIndex = 9, Offset = -1})
 
 				Library:Create("UIListLayout", {
 					Name = "\0",
