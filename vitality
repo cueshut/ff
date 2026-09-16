@@ -4199,15 +4199,15 @@ do --// UI Source
 				Items["LeftColumn"] = Library:Create("ScrollingFrame", {
 					Name = "\0",
 					Parent = Items["Page"].Instance,
-					ScrollBarImageColor3 = Color3.fromRGB(0, 0, 0),
+					ScrollBarImageColor3 = Library.Theme["Accent"],
 					Active = true,
 					AutomaticCanvasSize = Enum.AutomaticSize.Y,
-					ScrollBarThickness = 0,
+					ScrollBarThickness = 3,
 					BackgroundTransparency = 1,
 					Size = UDim2.new(1, 0, 1, 0),
 					BorderSizePixel = 0,
 					CanvasSize = UDim2.new(0, 0, 0, 0)
-				})
+				}):AddToTheme({ScrollBarImageColor3 = 'Accent'})
 
 				Library:Create("UIPadding", {
 					Name = "\0",
@@ -4228,15 +4228,15 @@ do --// UI Source
 				Items["RightColumn"] = Library:Create("ScrollingFrame", {
 					Name = "\0",
 					Parent = Items["Page"].Instance,
-					ScrollBarImageColor3 = Color3.fromRGB(0, 0, 0),
+					ScrollBarImageColor3 = Library.Theme["Accent"],
 					Active = true,
 					AutomaticCanvasSize = Enum.AutomaticSize.Y,
-					ScrollBarThickness = 0,
+					ScrollBarThickness = 3,
 					BackgroundTransparency = 1,
 					Size = UDim2.new(1, 0, 1, 0),
 					BorderSizePixel = 0,
 					CanvasSize = UDim2.new(0, 0, 0, 0)
-				})
+				}):AddToTheme({ScrollBarImageColor3 = 'Accent'})
 
 				Library:Create("UIPadding", {
 					Name = "\0",
@@ -4360,11 +4360,11 @@ do --// UI Source
 			}
 
 			local Items = { } do
-				local IsSettingsPage = string.lower(tostring(Section.Page.Name)) == "settings"
-				local FullHeight = Params.FullHeight == true or (Params.FullHeight ~= false and not IsSettingsPage)
-
-				-- Main-page sections fill the available column and scroll internally.
-				-- Settings sections remain compact stacked cards.
+				-- Sections size to their content: a box holding two toggles is two
+				-- toggles tall instead of a half-empty panel. Pass FullHeight = true
+				-- when a section should stretch down its column and scroll internally.
+				-- The page columns scroll on their own once sections outgrow the window.
+				local FullHeight = Params.FullHeight == true
 				Items["Section"] = Library:Create("Frame", {
 					Name = "\0",
 					Parent = Section.Page.ColumnsData[Section.Side].Instance,
@@ -5111,6 +5111,19 @@ do --// UI Source
 					Color = Library.Theme["Outline 1"]
 				}):AddToTheme({Color = 'Outline 1'})
 
+				-- Raised gradient so buttons read as physical, the same treatment the
+				-- dropdown box and the toggles get.
+				Library:Create("UIGradient", {
+					Name = "\0",
+					Parent = Items["RealButton"].Instance,
+					Rotation = 90,
+					Color = ColorSequence.new{
+						ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)),
+						ColorSequenceKeypoint.new(0.5, Color3.fromRGB(236, 236, 236)),
+						ColorSequenceKeypoint.new(1, Color3.fromRGB(208, 208, 208))
+					}
+				})
+
 				Items["Text"] = Library:Create("TextLabel", {
 					Name = "\0",
 					FontFace = Library.Font,
@@ -5511,6 +5524,8 @@ do --// UI Source
 					BorderSizePixel = 0
 				})
 
+				-- 18px line box, top aligned and lifted a pixel so descenders (the g
+				-- in "Configs") clear the box underneath instead of dipping into it.
 				Items["Text"] = Library:Create("TextLabel", {
 					Name = "\0",
 					FontFace = Library.Font,
@@ -5518,10 +5533,11 @@ do --// UI Source
 					Parent = Items["Dropdown"].Instance,
 					TextColor3 = Library.Theme["Text"],
 					Text = Dropdown.Name,
-					Size = UDim2.new(0, 0, 0, 16),
+					Size = UDim2.new(0, 0, 0, 18),
 					BackgroundTransparency = 1,
-					Position = UDim2.new(0, 1, 0, 0),
+					Position = UDim2.new(0, 1, 0, -1),
 					BorderSizePixel = 0,
+					TextYAlignment = Enum.TextYAlignment.Top,
 					AutomaticSize = Enum.AutomaticSize.X
 				}):AddToTheme({TextColor3 = 'Text'})
 
@@ -5542,6 +5558,7 @@ do --// UI Source
 					Position = UDim2.new(0, 2, 1, 0),
 					Size = UDim2.new(1, -4, 0, 20),
 					BorderSizePixel = 0,
+					ClipsDescendants = true,
 					BackgroundColor3 = Library.Theme["Element"]
 				}):AddToTheme({BackgroundColor3 = 'Element'})
 
@@ -5576,6 +5593,8 @@ do --// UI Source
 				})
 
 				-- Selected value text (screenshot 1: "Groupbox Dropdown", screenshot 2: "Game, Status, Fps, Ping")
+				-- Clamped to the box width (minus room for the arrow) and truncated, so
+				-- a long multi-select selection can no longer spill outside the box.
 				Items["Value"] = Library:Create("TextLabel", {
 					Name = "\0",
 					FontFace = Library.Font,
@@ -5584,11 +5603,13 @@ do --// UI Source
 					TextColor3 = Library.Theme["Inactive Text"],
 					Text = ".....",
 					AnchorPoint = Vector2.new(0, 0.5),
-					Size = UDim2.new(0, 0, 0, 16),
+					Size = UDim2.new(1, -24, 0, 16),
 					BackgroundTransparency = 1,
 					Position = UDim2.new(0, 6, 0.5, 0),
 					BorderSizePixel = 0,
-					AutomaticSize = Enum.AutomaticSize.X
+					TextXAlignment = Enum.TextXAlignment.Left,
+					TextTruncate = Enum.TextTruncate.AtEnd,
+					AutomaticSize = Enum.AutomaticSize.None
 				}):AddToTheme({TextColor3 = 'Inactive Text'})
 
 				Library:Create("UIStroke", {
@@ -5694,13 +5715,13 @@ do --// UI Source
 					BackgroundTransparency = 1,
 					BorderSizePixel = 0,
 					Position = UDim2.new(0, 0, 0, 0),
-					Size = UDim2.new(1, 0, 0, 16),
+					Size = UDim2.new(1, 6, 0, 16),
 					CanvasSize = UDim2.new(0, 0, 0, 16),
 					ScrollingDirection = Enum.ScrollingDirection.Y,
 					ScrollBarThickness = 3,
-					ScrollBarImageColor3 = Color3.fromRGB(45, 45, 45),
+					ScrollBarImageColor3 = Library.Theme["Accent"],
 					ZIndex = 2
-				})
+				}):AddToTheme({ScrollBarImageColor3 = 'Accent'})
 
 				Library:Create("UIListLayout", {
 					Name = "\0",
@@ -5809,7 +5830,7 @@ do --// UI Source
 					local Height = math.max(Count * 16 + math.max(Count - 1, 0) * 5, 16)
 
 					Items["OptionScroll"].Instance.CanvasSize = UDim2.new(0, 0, 0, Height)
-					Items["OptionScroll"].Instance.Size = UDim2.new(1, 0, 0, math.min(Height, 156))
+					Items["OptionScroll"].Instance.Size = UDim2.new(1, 6, 0, math.min(Height, 156))
 				end
 
 				local OptionData = {
@@ -6712,265 +6733,23 @@ do --// UI Source
 			return SettingsPage
 		end
 
-		--#region Single-file example runner and test documentation
+
+		--#region Ported game script - juanitahaxx
+		-- The juanitahaxx | airflow script, ported onto this library and kept
+		-- inside one function so the file above stays library-only. Calling it
+		-- builds the window, the feature loops and the unload path.
 		--
-		-- This section intentionally lives inside the same file as the library.
-		-- The library remains opt-in: loading this file only returns Library.
+		-- Pages: movement (fly, walkspeed, noclip, jumps, anti afk, instant
+		-- interact, ctrl + click teleport, waypoints, area teleports), visuals
+		-- (world, lighting, camera, trinket esp with tracers, player esp),
+		-- combat (auto pickup, trinket teleport, instant kill, kill aura, fps
+		-- cap) and players (targeting, spectate, interface, server tools).
 		--
-		-- Manual test:
-		--   local Library = loadstring(game:HttpGet("YOUR_RAW_URL/Vitality.lua"))()
-		--   local Window = Library:RunExample()
-		--
-		-- Or set this before loading the file to auto-run the demo:
-		--   getgenv().VITALITY_RUN_EXAMPLE = true
-		--
-		-- The demo creates the five screenshot tabs, animated controls, the
-		-- Settings page, Watermark, Console, Keybind List, and sample logs.
-		Library.RunExample = function(Self, Params)
-			Params = Params or { }
-
-			if Self.__ExampleWindow then
-				Self.__ExampleWindow:SetOpen(true)
-				return Self.__ExampleWindow
-			end
-
-			local Window = Self:Window({
-				Name = Params.Name or 'Vitality • [UP] Just a baseplate.'
-			})
-
-			Self.__ExampleWindow = Window
-			Self.WatermarkObject = Self:Watermark({
-				Name = Params.WatermarkName or 'Vitality',
-				SubName = Params.WatermarkSubName or '<font color="rgb(181, 32, 55)">·</font> &lt;Developer&gt; - [UP] Just a baseplate.'
-			})
-
-			-- Live fps / ms readouts on the right of the watermark strip.
-			Library:Thread(function()
-				local Sep = '<font color="rgb(181, 32, 55)">·</font>'
-				local Last = os.clock()
-				local Frames = 0
-				local Fps = 0
-				local Ping = 0
-
-				while Self.WatermarkObject do
-					task.wait()
-
-					Frames = Frames + 1
-
-					local Now = os.clock()
-
-					if Now - Last >= 0.5 then
-						Fps = math.floor(Frames / (Now - Last) + 0.5)
-						Frames = 0
-						Last = Now
-
-						pcall(function()
-							Ping = math.floor(game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue() + 0.5)
-						end)
-
-						Self.WatermarkObject:SetSubText(string.format(
-							'%s &lt;Developer&gt; - [UP] Just a baseplate. %s %d fps %s %d ms',
-							Sep, Sep, Fps, Sep, Ping
-						))
-					end
-				end
-			end)
-			Self.ConsoleObject = Self:Console({
-				Name = 'Console',
-				Size = UDim2.fromOffset(420, 385),
-				Position = UDim2.new(0.5, 262, 0, 150)
-			})
-			Self.KeyList = Self:KeybindList({
-				Name = 'Keybind'
-			})
-
-			local Main = Window:Page({Name = 'Main'})
-			local MainLeft = Main:Section({Name = 'Section 1', Side = 1})
-			local MainRight = Main:Section({Name = 'Section 1', Side = 2})
-
-			local Toggle = MainLeft:Toggle({
-				Name = 'Toggle',
-				Flag = 'example_toggle',
-				Default = true,
-				Callback = function(Value)
-					if Self.ConsoleObject then
-						Self.ConsoleObject:Log('Toggle changed to '.. tostring(Value), 'Info')
-					end
-				end
-			})
-			Toggle:Keybind({
-				Flag = 'example_toggle_key',
-				Mode = 'Toggle',
-				Default = Enum.KeyCode.B
-			})
-			MainLeft:Toggle({Name = 'Groupbox Toggle', Flag = 'example_group_toggle', Default = true})
-			MainLeft:Dropdown({
-				Name = 'Groupbox Dropdown',
-				Flag = 'example_group_dropdown',
-				Items = {'option1', 'option2', 'option3'},
-				Default = 'option3'
-			})
-			MainLeft:Toggle({Name = 'Enabled Toggle', Flag = 'example_enabled', Default = false})
-			MainLeft:Slider({
-				Name = 'Integer Slider', Flag = 'example_integer',
-				Min = 0, Max = 100, Default = 50, Suffix = '%'
-			})
-			MainLeft:Slider({
-				Name = 'Float Slider', Flag = 'example_float',
-				Min = 0, Max = 1, Default = 0.1, Decimals = 0.01, Suffix = 'm/s'
-			})
-			MainLeft:Slider({
-				Name = 'Decimal Slider', Flag = 'example_decimal',
-				Min = 0, Max = 1, Default = 0.55, Decimals = 0.01, Suffix = 's'
-			})
-			MainLeft:Dropdown({
-				Name = 'String Slider', Flag = 'example_string',
-				Items = {'low', 'mf', 'high'}, Default = 'mf'
-			})
-			MainLeft:Slider({
-				Name = 'Range Slider', Flag = 'example_range',
-				Min = 0, Max = 1000, Default = 585, Decimals = 1
-			})
-			MainLeft:Label({
-				Name = 'This is A Text Label That Can Also Be Used As A Paragraph. The Quick Brown Fox Jumps Over The Lazy Dog. You Can Also Break Lines Like This Or Like This'
-			})
-			MainLeft:Dropdown({
-				Name = 'Dropdown (Single)',
-				Items = {'option1', 'option2', 'option3'},
-				Default = 'option3'
-			})
-			MainLeft:Dropdown({
-				Name = 'Dropdown (Multi)',
-				Items = {'option1', 'option2', 'option3'},
-				Default = {'option1', 'option2'},
-				Multi = true
-			})
-
-			MainRight:Toggle({Name = 'Toggle', Flag = 'example_right_toggle', Default = false})
-			MainRight:Toggle({Name = 'Enabled Toggle', Flag = 'example_right_enabled', Default = true})
-			MainRight:Slider({
-				Name = 'Integer Slider', Flag = 'example_right_integer',
-				Min = 0, Max = 100, Default = 50, Suffix = '%'
-			})
-			MainRight:Slider({
-				Name = 'Float Slider', Flag = 'example_right_float',
-				Min = 0, Max = 1, Default = 0, Decimals = 0.01, Suffix = 'm/s'
-			})
-			MainRight:Slider({
-				Name = 'Decimal Slider', Flag = 'example_right_decimal',
-				Min = 0, Max = 1, Default = 0.5, Decimals = 0.01, Suffix = 's'
-			})
-			MainRight:Dropdown({
-				Name = 'String Slider', Flag = 'example_right_string',
-				Items = {'low', 'mf', 'inf'}, Default = 'inf'
-			})
-			MainRight:Slider({
-				Name = 'Range Slider', Flag = 'example_right_range',
-				Min = 0, Max = 1000, Default = 0, Decimals = 1
-			})
-			MainRight:Label({
-				Name = 'This is A Text Label That Can Also Be Used As A Paragraph. The Quick Brown Fox Jumps Over The Lazy Dog. You Can Also Break Lines Like This Or Like This'
-			})
-			MainRight:Dropdown({
-				Name = 'Dropdown (Single)',
-				Items = {'option1', 'option2', 'option3'},
-				Default = 'option1'
-			})
-
-			local Misc = Window:Page({Name = 'Misc'})
-			local MiscSection = Misc:Section({Name = 'Utilities', Side = 1})
-			MiscSection:Toggle({Name = 'Notifications', Flag = 'example_notifications', Default = true})
-			MiscSection:Toggle({Name = 'Watermark', Flag = 'example_misc_watermark', Default = true})
-			MiscSection:Button({Name = 'Print Test Log', Callback = function()
-				if Self.ConsoleObject then
-					Self.ConsoleObject:Log('Manual test log from the Misc page.', 'Output')
-				end
-			end})
-			MiscSection:Button({Name = 'Show Notification', Callback = function()
-				Self:Notification({Name = 'Vitality example is working', Time = 3})
-			end})
-
-			local PlayersPage = Window:Page({Name = 'Players'})
-			local PlayersSection = PlayersPage:Section({Name = 'Player List', Side = 1})
-			PlayersSection:Dropdown({Name = 'Target Player', Items = {'Everyone', 'Nearest Player'}, Default = 'Everyone'})
-			PlayersSection:Toggle({Name = 'Highlight Target', Flag = 'example_highlight', Default = false})
-			PlayersSection:Slider({Name = 'Target Distance', Flag = 'example_distance', Min = 0, Max = 1000, Default = 250, Suffix = ' studs'})
-
-			local Visuals = Window:Page({Name = 'Visuals'})
-			local VisualSection = Visuals:Section({Name = 'Visual Settings', Side = 1})
-			VisualSection:Toggle({Name = 'ESP', Flag = 'example_esp', Default = false})
-			VisualSection:Toggle({Name = 'Tracers', Flag = 'example_tracers', Default = false})
-			VisualSection:Label({Name = 'Accent Color'}):Colorpicker({
-				Name = 'Accent Color', Flag = 'example_accent', Default = Self.Theme.Accent
-			})
-			VisualSection:Label({Name = 'Visual Bind'}):Keybind({
-				Flag = 'example_visual_bind', Mode = 'Toggle', Default = Enum.KeyCode.V
-			})
-
-			local Settings = Window:InitSettings()
-			Self.__ExampleSettings = Settings
-
-			Self.ConsoleObject:Log('Console ready.', 'Output')
-			Self.ConsoleObject:Log('Library initialized.', 'Info')
-			Self.ConsoleObject:Log('This is a warning example.', 'Warning')
-			Self.ConsoleObject:Log('This is an error example.', 'Error')
-
-			return Window
-		end
-		--#endregion
-
-		--#region Ported game script - juanitahaxx (movement / visuals / combat)
-		--
-		-- Full juanitahaxx build ported to Vitality: fly, walkspeed, noclip, area
-		-- and trinket teleports, auto pickup, fullbright, anti blind, hide name,
-		-- rarity drop ESP, player ESP, instant kill and the insanity blocker. It
-		-- lives in a function so this file stays a library first - nothing here
-		-- runs unless you ask for it.
-		--
-		-- Standalone use:
-		--   1. Copy the body of Library.RunGameScript into a new script.
-		--   2. Replace the marked "local Library = Self" line with your loadstring:
-		--        local Library = loadstring(game:HttpGet("RAW_URL_TO_Vitality.lua"))()
-		--   3. Execute.
-		--
-		-- In-file testing: set getgenv().VITALITY_RUN_GAME_SCRIPT = true before
-		-- executing this file and the game script runs instead of the demo.
-		--
-		-- Menu toggle key: X. Fly keybind: F (rebindable in the UI).
-		--
-		-- Improvements over the original tst.txt build:
-		--   * Re-execution guard: running the script twice unloads the old copy
-		--     instead of stacking ESP drawings, loops and hooks on top of it.
-		--   * Fixed drop tracking when workspace.Drops spawns AFTER exec (the
-		--     original only hooked ChildAdded/ChildRemoved when the folder already
-		--     existed) and drop ESP is cleared when the folder is removed.
-		--   * Anti blind and hide name were per-frame Heartbeat polls; they are now
-		--     event-driven (ChildAdded) with a 1 Hz sweeper as fallback.
-		--   * Teleports are re-entrant safe (button spam cannot stack anchors),
-		--     abort if the character dies mid-teleport and always restore Anchored.
-		--   * The sensoryESP source patches are verified: if the upstream source
-		--     changes you get a clear warning instead of a silently broken max
-		--     distance, and the loaded library table is validated before use.
-		--   * NPC and trinket dropdowns no longer rebuild while they are open, so
-		--     the list does not flicker out from under the mouse.
-		--   * Fly clamps delta time (a lag spike can no longer fling you) and
-		--     stopping fly zeroes leftover velocity.
-		--   * Unload no longer freezes the UI for half a second, every game
-		--     connection is tracked and cleaned up, and status messages also go to
-		--     the Vitality console.
+		-- Run it with Library:RunGameScript(), or set
+		-- getgenv().VITALITY_RUN_GAME_SCRIPT = true before loading this file.
+		-- To run it standalone instead, keep a copy that starts with
+		-- local Library = loadstring(game:HttpGet(<raw url to this file>))().
 		Library.RunGameScript = function(Self)
-			-- ============================================================
-			-- juanitahaxx | movement + visuals + sensoryESP player ESP
-			-- + rarity drop ESP + teleports + auto pickup + instant kill
-			-- Ported to the Vitality UI library.
-			--
-			-- [STANDALONE] this block lives inside Library.RunGameScript in Vitality.lua.
-			-- To run it on its own, copy the whole block into a new script and replace:
-			--     local Library = Self
-			-- with your loadstring:
-			--     local Library = loadstring(game:HttpGet("RAW_URL_TO_Vitality.lua"))()
-			-- ============================================================
-
 			local Library = Self
 
 			-- Re-execution guard: unload the previous copy (fly, ESP, drawings, loops)
@@ -7015,6 +6794,42 @@ do --// UI Source
 			}
 
 			local Unloaded = false
+
+			-- ============================================================
+			-- EXTRA FEATURE STATE
+			-- Declared up here so the drop ESP renderer and UnloadScript can both see it.
+			-- ============================================================
+			local Extra = {
+				InfiniteJump = false,
+				JumpPowerEnabled = false,
+				JumpPower = 50,
+				AntiAfk = false,
+				InstantPrompts = false,
+				ClickTeleport = false,
+				FovEnabled = false,
+				Fov = 70,
+				MaxZoom = 128,
+				Brightness = 2,
+				NoShadows = false,
+				DropDistance = true,
+				DropTracers = false,
+				DropTextSize = 13,
+				TracerColor = Color3.fromRGB(181, 32, 55),
+				KillAura = false,
+				KillAuraRadius = 60,
+				KillAuraDelay = 0.25,
+				Spectating = false,
+				SelectedPlayer = "",
+				FpsCap = 240,
+			}
+
+			-- Every feature block below registers its teardown here, and UnloadScript walks
+			-- the list, so no loop, connection or drawing survives an unload.
+			local ExtraCleanup = {}
+
+			local function registerCleanup(fn)
+				table.insert(ExtraCleanup, fn)
+			end
 
 			local function getHRP()
 				local char = LocalPlayer.Character
@@ -7590,6 +7405,9 @@ do --// UI Source
 					dot = newDrawing("Square", {
 						Filled = true, Visible = false, Color = RARITY_COLORS.Common, ZIndex = 2,
 					}),
+					tracer = newDrawing("Line", {
+						Thickness = 1, Visible = false, Color = Color3.fromRGB(181, 32, 55), ZIndex = 0,
+					}),
 				}
 
 				local ok = pcall(function()
@@ -7603,6 +7421,7 @@ do --// UI Source
 					self.label.Visible = false
 					self.dot.Visible = false
 					self.dotOutline.Visible = false
+					self.tracer.Visible = false
 				end
 
 				function esp:Update()
@@ -7631,10 +7450,29 @@ do --// UI Source
 					self.dot.Color = color
 					self.dot.Visible = true
 
-					self.label.Text = self.model.Name .. "  [" .. self.rarity .. "]"
+					local text = self.model.Name .. "  [" .. self.rarity .. "]"
+
+					if Extra.DropDistance and Camera then
+						local dist = (pos - Camera.CFrame.Position).Magnitude
+						text = text .. "  " .. tostring(math.floor(dist)) .. "m"
+					end
+
+					self.label.Text = text
+					self.label.Size = Extra.DropTextSize
 					self.label.Position = screen + Vector2.new(0, 10)
 					self.label.Color = color
 					self.label.Visible = true
+
+					-- tracer runs from the bottom middle of the screen to the drop
+					if Extra.DropTracers and Camera then
+						local vp = Camera.ViewportSize
+						self.tracer.From = Vector2.new(vp.X / 2, vp.Y)
+						self.tracer.To = screen
+						self.tracer.Color = Extra.TracerColor
+						self.tracer.Visible = true
+					else
+						self.tracer.Visible = false
+					end
 				end
 
 				function esp:Destroy()
@@ -7643,6 +7481,7 @@ do --// UI Source
 					self.label:Remove()
 					self.dot:Remove()
 					self.dotOutline:Remove()
+					self.tracer:Remove()
 				end
 
 				DropESPObjects[model] = esp
@@ -7815,6 +7654,8 @@ do --// UI Source
 				SetAntiBlind(false)
 				SetHideName(false)
 
+				for _, fn in ipairs(ExtraCleanup) do pcall(fn) end
+
 				unwatchDropsFolder()
 				clearDropESP()
 
@@ -7836,6 +7677,404 @@ do --// UI Source
 			getgenv().JuanitaVitalityUnload = UnloadScript
 
 			-- ============================================================
+			-- EXTRA MOVEMENT (infinite jump, jump power, anti afk, instant prompts,
+			-- ctrl + click teleport)
+			-- ============================================================
+			local jumpRequestConn = nil
+
+			local function SetInfiniteJump(on)
+				Extra.InfiniteJump = on
+				if on then
+					if jumpRequestConn then return end
+					jumpRequestConn = Library:Connect(UserInputService.JumpRequest, function()
+						if Unloaded or not Extra.InfiniteJump then return end
+						local hum = getHumanoid()
+						if hum then
+							pcall(function() hum:ChangeState(Enum.HumanoidStateType.Jumping) end)
+						end
+					end)
+				elseif jumpRequestConn then
+					jumpRequestConn:Disconnect()
+					jumpRequestConn = nil
+				end
+			end
+
+			-- Jump power and fov are both "hold this value" features, so they share one
+			-- heartbeat instead of each spawning its own loop.
+			Library:Connect(RunService.Heartbeat, function()
+				if Unloaded then return end
+
+				if Extra.JumpPowerEnabled then
+					local hum = getHumanoid()
+					if hum then
+						pcall(function()
+							hum.UseJumpPower = true
+							hum.JumpPower = Extra.JumpPower
+						end)
+					end
+				end
+
+				if Extra.FovEnabled then
+					local cam = Workspace.CurrentCamera
+					if cam and cam.FieldOfView ~= Extra.Fov then
+						pcall(function() cam.FieldOfView = Extra.Fov end)
+					end
+				end
+			end)
+
+			local VirtualUser = nil
+			pcall(function() VirtualUser = game:GetService("VirtualUser") end)
+
+			local idledConn = nil
+
+			local function SetAntiAfk(on)
+				Extra.AntiAfk = on
+				if on then
+					if idledConn then return end
+					idledConn = Library:Connect(LocalPlayer.Idled, function()
+						if Unloaded or not Extra.AntiAfk or not VirtualUser then return end
+						pcall(function()
+							VirtualUser:CaptureController()
+							VirtualUser:ClickButton2(Vector2.new())
+						end)
+					end)
+				elseif idledConn then
+					idledConn:Disconnect()
+					idledConn = nil
+				end
+			end
+
+			-- Instant interact remembers each prompt's hold time, so toggling it off puts
+			-- the world back exactly how it was.
+			local promptBackup = {}
+			local promptConn = nil
+
+			local function applyInstantPrompt(prompt)
+				if promptBackup[prompt] == nil then
+					promptBackup[prompt] = prompt.HoldDuration
+				end
+				pcall(function() prompt.HoldDuration = 0 end)
+			end
+
+			local function SetInstantPrompts(on)
+				Extra.InstantPrompts = on
+				if on then
+					for _, d in ipairs(Workspace:GetDescendants()) do
+						if d:IsA("ProximityPrompt") then applyInstantPrompt(d) end
+					end
+					if not promptConn then
+						promptConn = Library:Connect(Workspace.DescendantAdded, function(d)
+							if Unloaded or not Extra.InstantPrompts then return end
+							if d:IsA("ProximityPrompt") then applyInstantPrompt(d) end
+						end)
+					end
+					log("instant interact applied to every proximity prompt", "Info")
+				else
+					if promptConn then
+						promptConn:Disconnect()
+						promptConn = nil
+					end
+					for prompt, hold in pairs(promptBackup) do
+						if prompt.Parent then
+							pcall(function() prompt.HoldDuration = hold end)
+						end
+					end
+					promptBackup = {}
+				end
+			end
+
+			local clickConn = nil
+
+			local function SetClickTeleport(on)
+				Extra.ClickTeleport = on
+				if on then
+					if clickConn then return end
+					clickConn = Library:Connect(UserInputService.InputBegan, function(input, processed)
+						if Unloaded or not Extra.ClickTeleport or processed then return end
+						if input.UserInputType ~= Enum.UserInputType.MouseButton1 then return end
+						if not UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then return end
+
+						local mouse = LocalPlayer:GetMouse()
+						local hit = mouse and mouse.Hit
+						if hit then
+							local p = hit.Position
+							teleportTo(p.X, p.Y + 4, p.Z)
+						end
+					end)
+				elseif clickConn then
+					clickConn:Disconnect()
+					clickConn = nil
+				end
+			end
+
+			-- ============================================================
+			-- WAYPOINTS (save where you are standing, teleport back later)
+			-- ============================================================
+			local Waypoints = {}
+			local WaypointOrder = {}
+			local WaypointDropdown = nil
+			local WaypointName = ""
+			local SelectedWaypoint = ""
+
+			local function rebuildWaypointList()
+				if not WaypointDropdown then return end
+				pcall(function() WaypointDropdown:Refresh(WaypointOrder) end)
+			end
+
+			local function saveWaypoint(name)
+				local hrp = getHRP()
+				if not hrp then
+					notify("no character to save", 2)
+					return
+				end
+
+				name = tostring(name or "")
+				name = string.gsub(name, "^%s+", "")
+				name = string.gsub(name, "%s+$", "")
+				if name == "" then
+					name = "waypoint " .. tostring(#WaypointOrder + 1)
+				end
+
+				if Waypoints[name] == nil then
+					table.insert(WaypointOrder, name)
+				end
+
+				local p = hrp.Position
+				Waypoints[name] = { p.X, p.Y, p.Z }
+				SelectedWaypoint = name
+				rebuildWaypointList()
+				log(string.format("saved waypoint %s (%.0f, %.0f, %.0f)", name, p.X, p.Y, p.Z), "Info")
+				notify("saved " .. name, 2)
+			end
+
+			local function deleteWaypoint(name)
+				if not name or name == "" or Waypoints[name] == nil then
+					notify("no waypoint selected", 2)
+					return
+				end
+
+				Waypoints[name] = nil
+				for i, v in ipairs(WaypointOrder) do
+					if v == name then
+						table.remove(WaypointOrder, i)
+						break
+					end
+				end
+
+				if SelectedWaypoint == name then SelectedWaypoint = "" end
+				rebuildWaypointList()
+				log("deleted waypoint " .. name, "Info")
+			end
+
+			local function teleportToWaypoint(name)
+				local coords = name and name ~= "" and Waypoints[name]
+				if not coords then
+					notify("no waypoint selected", 2)
+					return
+				end
+				teleportTo(coords[1], coords[2], coords[3])
+			end
+
+			-- ============================================================
+			-- LIGHTING + CAMERA
+			-- ============================================================
+			local lightingBackup = {}
+
+			local function backupLighting(prop)
+				if lightingBackup[prop] == nil then
+					pcall(function() lightingBackup[prop] = Lighting[prop] end)
+				end
+			end
+
+			local function SetBrightness(v)
+				Extra.Brightness = v
+				backupLighting("Brightness")
+				-- keep fullbright in sync so the two do not fight over the value
+				FB.Props.Brightness = v
+				pcall(function() Lighting.Brightness = v end)
+			end
+
+			local function SetAmbientColor(c)
+				backupLighting("Ambient")
+				backupLighting("OutdoorAmbient")
+				FB.Props.Ambient = c
+				FB.Props.OutdoorAmbient = c
+				pcall(function()
+					Lighting.Ambient = c
+					Lighting.OutdoorAmbient = c
+				end)
+			end
+
+			local function SetNoShadows(on)
+				Extra.NoShadows = on
+				backupLighting("GlobalShadows")
+				pcall(function() Lighting.GlobalShadows = not on end)
+			end
+
+			local function SetFovLock(on)
+				Extra.FovEnabled = on
+				local cam = Workspace.CurrentCamera
+				if not cam then return end
+				pcall(function() cam.FieldOfView = on and Extra.Fov or 70 end)
+			end
+
+			local function SetFov(v)
+				Extra.Fov = v
+				if not Extra.FovEnabled then return end
+				local cam = Workspace.CurrentCamera
+				if cam then pcall(function() cam.FieldOfView = v end) end
+			end
+
+			local function SetMaxZoom(v)
+				Extra.MaxZoom = v
+				pcall(function() LocalPlayer.CameraMaxZoomDistance = v end)
+			end
+
+			-- ============================================================
+			-- KILL AURA (same Enemy humanoid the instant kill buttons use)
+			-- ============================================================
+			local function killAuraStep()
+				local hrp = getHRP()
+				local monsters = Workspace:FindFirstChild("Monsters")
+				if not (hrp and monsters) then return 0 end
+
+				local killed = 0
+				for _, m in ipairs(monsters:GetChildren()) do
+					local enemy = m:FindFirstChild("Enemy")
+					local root = m:FindFirstChild("HumanoidRootPart") or m.PrimaryPart
+						or m:FindFirstChildWhichIsA("BasePart")
+					if enemy and root and (root.Position - hrp.Position).Magnitude <= Extra.KillAuraRadius then
+						if pcall(function() enemy.Health = 0 end) then
+							killed += 1
+						end
+					end
+				end
+				return killed
+			end
+
+			Library:Thread(function()
+				while not Unloaded do
+					if Extra.KillAura then
+						pcall(killAuraStep)
+						task.wait(Extra.KillAuraDelay)
+					else
+						task.wait(0.2)
+					end
+				end
+			end)
+
+			-- ============================================================
+			-- PLAYERS + SERVER
+			-- ============================================================
+			local PlayerDropdown = nil
+
+			local function playerNames()
+				local names = {}
+				for _, plr in ipairs(Players:GetPlayers()) do
+					if plr ~= LocalPlayer then
+						table.insert(names, plr.Name)
+					end
+				end
+				table.sort(names)
+				return names
+			end
+
+			local function rebuildPlayerList()
+				if not PlayerDropdown then return end
+				pcall(function() PlayerDropdown:Refresh(playerNames()) end)
+			end
+
+			local function getSelectedPlayer()
+				if Extra.SelectedPlayer == "" then return nil end
+				return Players:FindFirstChild(Extra.SelectedPlayer)
+			end
+
+			local function teleportToPlayer()
+				local plr = getSelectedPlayer()
+				if not plr then
+					notify("no player selected", 2)
+					return
+				end
+
+				local char = plr.Character
+				local hrp = char and char:FindFirstChild("HumanoidRootPart")
+				if not hrp then
+					notify(plr.Name .. " has no character", 2)
+					return
+				end
+
+				local p = hrp.Position
+				teleportTo(p.X, p.Y + 4, p.Z)
+			end
+
+			local function SetSpectate(on)
+				local cam = Workspace.CurrentCamera
+				if not cam then return end
+
+				if on then
+					local plr = getSelectedPlayer()
+					local hum = plr and plr.Character and plr.Character:FindFirstChildOfClass("Humanoid")
+					if not hum then
+						Extra.Spectating = false
+						notify("cannot spectate that player", 2)
+						return
+					end
+					Extra.Spectating = true
+					pcall(function() cam.CameraSubject = hum end)
+					log("spectating " .. plr.Name, "Info")
+				else
+					Extra.Spectating = false
+					local hum = getHumanoid()
+					if hum then pcall(function() cam.CameraSubject = hum end) end
+				end
+			end
+
+			local function SetFpsCap(v)
+				Extra.FpsCap = v
+				if setfpscap then
+					pcall(function() setfpscap(v) end)
+				end
+			end
+
+			local function rejoinServer()
+				notify("rejoining server...", 3)
+				pcall(function()
+					game:GetService("TeleportService"):Teleport(game.PlaceId, LocalPlayer)
+				end)
+			end
+
+			local function copyJobId()
+				local id = tostring(game.JobId)
+				if setclipboard then
+					pcall(function() setclipboard(id) end)
+					notify("job id copied", 2)
+				else
+					notify("clipboard unavailable, job id logged", 3)
+				end
+				log("job id: " .. id, "Info")
+			end
+
+			-- ============================================================
+			-- CLEANUP for everything above
+			-- ============================================================
+			registerCleanup(function() SetInfiniteJump(false) end)
+			registerCleanup(function() SetAntiAfk(false) end)
+			registerCleanup(function() SetInstantPrompts(false) end)
+			registerCleanup(function() SetClickTeleport(false) end)
+			registerCleanup(function()
+				Extra.KillAura = false
+				Extra.JumpPowerEnabled = false
+				Extra.DropTracers = false
+
+				if Extra.Spectating then SetSpectate(false) end
+				if Extra.FovEnabled then SetFovLock(false) end
+
+				for prop, value in pairs(lightingBackup) do
+					pcall(function() Lighting[prop] = value end)
+				end
+			end)
+
+			-- ============================================================
 			-- UI  (Vitality)
 			-- ============================================================
 			local Window = Library:Window({ Name = "juanitahaxx | airflow" })
@@ -7845,7 +8084,7 @@ do --// UI Source
 				SubName = "airflow"
 			})
 
-			-- live fps / ping on the watermark strip (same pattern as Library:RunExample)
+			-- live fps / ping on the watermark strip
 			Library:Thread(function()
 				local Sep = '<font color="rgb(181, 32, 55)">·</font>'
 				local Last = os.clock()
@@ -7923,7 +8162,7 @@ do --// UI Source
 
 			local WalkSection = MovementPage:Section({ Name = "walkspeed", Side = 1 })
 
-			WalkSection:Toggle({
+			local WalkToggle = WalkSection:Toggle({
 				Name = "walkspeed",
 				Flag = "walkspeed_enabled",
 				Default = false,
@@ -7939,7 +8178,7 @@ do --// UI Source
 
 			local NoclipSection = MovementPage:Section({ Name = "noclip", Side = 1 })
 
-			NoclipSection:Toggle({
+			local NoclipToggle = NoclipSection:Toggle({
 				Name = "noclip",
 				Flag = "noclip",
 				Default = false,
@@ -8314,6 +8553,370 @@ do --// UI Source
 				Callback = UnloadScript,
 			})
 
+			-- ---------------- Movement: jumps ----------------
+			local JumpSection = MovementPage:Section({ Name = "jumps", Side = 1 })
+
+			local InfJumpToggle = JumpSection:Toggle({
+				Name = "infinite jump",
+				Flag = "infinite_jump",
+				Default = false,
+				Callback = function(v) SetInfiniteJump(v) end,
+			})
+
+			JumpSection:Label({ Name = "infinite jump keybind" }):Keybind({
+				Name = "infinite jump",
+				Flag = "infinite_jump_bind",
+				Default = Enum.KeyCode.J,
+				Mode = "Toggle",
+				Callback = function(state)
+					if Unloaded then return end
+					InfJumpToggle:Set(state == true)
+				end,
+			})
+
+			JumpSection:Toggle({
+				Name = "custom jump power",
+				Flag = "jump_power_enabled",
+				Default = false,
+				Callback = function(v)
+					Extra.JumpPowerEnabled = v
+					if not v then
+						local hum = getHumanoid()
+						if hum then pcall(function() hum.JumpPower = 50 end) end
+					end
+				end,
+			})
+
+			JumpSection:Slider({
+				Name = "jump power",
+				Flag = "jump_power",
+				Min = 50, Max = 300, Default = 50, Decimals = 0.1, Suffix = " jp",
+				Callback = function(v) Extra.JumpPower = v end,
+			})
+
+			-- ---------------- Movement: utility ----------------
+			local UtilitySection = MovementPage:Section({ Name = "utility", Side = 1 })
+
+			UtilitySection:Toggle({
+				Name = "anti afk",
+				Flag = "anti_afk",
+				Default = false,
+				Tooltip = "never gets kicked for being idle",
+				Callback = function(v) SetAntiAfk(v) end,
+			})
+
+			UtilitySection:Toggle({
+				Name = "instant interact",
+				Flag = "instant_prompts",
+				Default = false,
+				Tooltip = "sets every proximity prompt hold time to zero",
+				Callback = function(v) SetInstantPrompts(v) end,
+			})
+
+			UtilitySection:Toggle({
+				Name = "ctrl + click teleport",
+				Flag = "click_teleport",
+				Default = false,
+				Tooltip = "hold left ctrl and click anywhere to teleport there",
+				Callback = function(v) SetClickTeleport(v) end,
+			})
+
+			-- keybinds for the two modules that shipped without one
+			NoclipSection:Label({ Name = "noclip keybind" }):Keybind({
+				Name = "noclip",
+				Flag = "noclip_bind",
+				Default = Enum.KeyCode.N,
+				Mode = "Toggle",
+				Callback = function(state)
+					if Unloaded then return end
+					NoclipToggle:Set(state == true)
+				end,
+			})
+
+			WalkSection:Label({ Name = "walkspeed keybind" }):Keybind({
+				Name = "walkspeed",
+				Flag = "walkspeed_bind",
+				Default = Enum.KeyCode.H,
+				Mode = "Toggle",
+				Callback = function(state)
+					if Unloaded then return end
+					WalkToggle:Set(state == true)
+				end,
+			})
+
+			-- ---------------- Movement: waypoints ----------------
+			local WaypointSection = MovementPage:Section({ Name = "waypoints", Side = 2 })
+
+			WaypointSection:Textbox({
+				Name = "name",
+				Flag = "waypoint_name",
+				Placeholder = "waypoint name",
+				Callback = function(text) WaypointName = text end,
+			})
+
+			WaypointSection:Button({
+				Name = "save current position",
+				Callback = function() saveWaypoint(WaypointName) end,
+			})
+
+			WaypointDropdown = WaypointSection:Dropdown({
+				Name = "saved waypoints",
+				Flag = "waypoint_list",
+				Items = {},
+				Default = "",
+				Multi = false,
+				Callback = function(v) SelectedWaypoint = v end,
+			})
+
+			WaypointSection:Button({
+				Name = "teleport to waypoint",
+				Callback = function() teleportToWaypoint(SelectedWaypoint) end,
+			})
+
+			WaypointSection:Button({
+				Name = "delete waypoint",
+				Callback = function() deleteWaypoint(SelectedWaypoint) end,
+			})
+
+			-- ---------------- Visuals: lighting ----------------
+			local LightingSection = VisualsPage:Section({ Name = "lighting", Side = 1 })
+
+			LightingSection:Slider({
+				Name = "brightness",
+				Flag = "brightness",
+				Min = 0, Max = 10, Default = 2, Decimals = 0.1, Suffix = "",
+				Callback = function(v) SetBrightness(v) end,
+			})
+
+			LightingSection:Label({ Name = "ambient color" }):Colorpicker({
+				Flag = "ambient_color",
+				Default = Color3.fromRGB(255, 255, 255),
+				Callback = function(c) SetAmbientColor(c) end,
+			})
+
+			LightingSection:Toggle({
+				Name = "remove shadows",
+				Flag = "no_shadows",
+				Default = false,
+				Callback = function(v) SetNoShadows(v) end,
+			})
+
+			-- ---------------- Visuals: camera ----------------
+			local CameraSection = VisualsPage:Section({ Name = "camera", Side = 1 })
+
+			CameraSection:Toggle({
+				Name = "lock fov",
+				Flag = "fov_lock",
+				Default = false,
+				Callback = function(v) SetFovLock(v) end,
+			})
+
+			CameraSection:Slider({
+				Name = "fov",
+				Flag = "fov",
+				Min = 40, Max = 120, Default = 70, Decimals = 0.1, Suffix = " deg",
+				Callback = function(v) SetFov(v) end,
+			})
+
+			CameraSection:Slider({
+				Name = "max zoom",
+				Flag = "max_zoom",
+				Min = 16, Max = 1000, Default = 128, Decimals = 0.1, Suffix = " studs",
+				Callback = function(v) SetMaxZoom(v) end,
+			})
+
+			-- ---------------- Visuals: trinket esp extras ----------------
+			DropESPSection:Toggle({
+				Name = "show distance",
+				Flag = "drop_distance_text",
+				Default = true,
+				Callback = function(v) Extra.DropDistance = v end,
+			})
+
+			DropESPSection:Toggle({
+				Name = "tracers",
+				Flag = "drop_tracers",
+				Default = false,
+				Callback = function(v) Extra.DropTracers = v end,
+			}):Colorpicker({
+				Flag = "drop_tracer_color",
+				Default = Color3.fromRGB(181, 32, 55),
+				Callback = function(c) Extra.TracerColor = c end,
+			})
+
+			DropESPSection:Slider({
+				Name = "text size",
+				Flag = "drop_text_size",
+				Min = 10, Max = 24, Default = 13, Decimals = 0.1, Suffix = " px",
+				Callback = function(v) Extra.DropTextSize = v end,
+			})
+
+			-- ---------------- Combat: kill aura ----------------
+			local AuraSection = CombatPage:Section({ Name = "kill aura", Side = 1 })
+
+			local AuraToggle = AuraSection:Toggle({
+				Name = "kill aura",
+				Flag = "kill_aura",
+				Default = false,
+				Tooltip = "kills every npc inside the radius on a timer",
+				Callback = function(v) Extra.KillAura = v end,
+			})
+
+			AuraSection:Label({ Name = "kill aura keybind" }):Keybind({
+				Name = "kill aura",
+				Flag = "kill_aura_bind",
+				Default = Enum.KeyCode.K,
+				Mode = "Toggle",
+				Callback = function(state)
+					if Unloaded then return end
+					AuraToggle:Set(state == true)
+				end,
+			})
+
+			AuraSection:Slider({
+				Name = "radius",
+				Flag = "kill_aura_radius",
+				Min = 10, Max = 200, Default = 60, Decimals = 0.1, Suffix = " studs",
+				Callback = function(v) Extra.KillAuraRadius = v end,
+			})
+
+			AuraSection:Slider({
+				Name = "delay",
+				Flag = "kill_aura_delay",
+				Min = 0.05, Max = 2, Default = 0.25, Decimals = 0.01, Suffix = "s",
+				Callback = function(v) Extra.KillAuraDelay = v end,
+			})
+
+			-- ---------------- Combat: exploit extras ----------------
+			ExploitSection:Slider({
+				Name = "fps cap",
+				Flag = "fps_cap",
+				Min = 30, Max = 360, Default = 240, Decimals = 0.1, Suffix = " fps",
+				Callback = function(v) SetFpsCap(v) end,
+			})
+
+			-- ---------------- Players ----------------
+			local PlayersPage = Window:Page({ Name = "players" })
+
+			local PlayersSection = PlayersPage:Section({ Name = "players", Side = 1 })
+
+			PlayerDropdown = PlayersSection:Dropdown({
+				Name = "player",
+				Flag = "player_target",
+				Items = {},
+				Default = "",
+				Multi = false,
+				Callback = function(v) Extra.SelectedPlayer = v end,
+			})
+
+			PlayersSection:Button({
+				Name = "refresh list",
+				Callback = function()
+					rebuildPlayerList()
+					notify("player list refreshed", 2)
+				end,
+			})
+
+			PlayersSection:Button({
+				Name = "teleport to player",
+				Callback = teleportToPlayer,
+			})
+
+			PlayersSection:Toggle({
+				Name = "spectate",
+				Flag = "spectate",
+				Default = false,
+				Callback = function(v) SetSpectate(v) end,
+			})
+
+			PlayersSection:Button({
+				Name = "copy username",
+				Callback = function()
+					if Extra.SelectedPlayer == "" then
+						notify("no player selected", 2)
+						return
+					end
+					if setclipboard then
+						pcall(function() setclipboard(Extra.SelectedPlayer) end)
+						notify("copied " .. Extra.SelectedPlayer, 2)
+					else
+						notify("clipboard unavailable", 2)
+					end
+				end,
+			})
+
+			-- ---------------- Players: interface ----------------
+			local InterfaceSection = PlayersPage:Section({ Name = "interface", Side = 2 })
+
+			InterfaceSection:Toggle({
+				Name = "watermark",
+				Flag = "ui_watermark",
+				Default = true,
+				Callback = function(v)
+					pcall(function() Watermark:SetVisibility(v) end)
+				end,
+			})
+
+			InterfaceSection:Toggle({
+				Name = "keybind list",
+				Flag = "ui_keybind_list",
+				Default = true,
+				Callback = function(v)
+					pcall(function() Library.KeyList:SetVisibility(v) end)
+				end,
+			})
+
+			InterfaceSection:Toggle({
+				Name = "console",
+				Flag = "ui_console",
+				Default = true,
+				Callback = function(v)
+					pcall(function() Console:SetVisibility(v) end)
+				end,
+			})
+
+			InterfaceSection:Button({
+				Name = "clear console",
+				Callback = function()
+					pcall(function() Console:Clear() end)
+				end,
+			})
+
+			-- ---------------- Players: server ----------------
+			local ServerSection = PlayersPage:Section({ Name = "server", Side = 2 })
+
+			ServerSection:Button({
+				Name = "rejoin server",
+				Callback = rejoinServer,
+			})
+
+			ServerSection:Button({
+				Name = "copy job id",
+				Callback = copyJobId,
+			})
+
+			ServerSection:Button({
+				Name = "log server info",
+				Callback = function()
+					log("place id: " .. tostring(game.PlaceId), "Info")
+					log("job id: " .. tostring(game.JobId), "Info")
+					log("players: " .. tostring(#Players:GetPlayers()) .. " / " .. tostring(Players.MaxPlayers), "Info")
+				end,
+			})
+
+			-- the player list stays current without rebuilding while the list is open
+			Library:Thread(function()
+				while not Unloaded do
+					if not (PlayerDropdown and PlayerDropdown.IsOpen) then
+						rebuildPlayerList()
+					end
+					task.wait(3)
+				end
+			end)
+
+			rebuildPlayerList()
+			rebuildWaypointList()
+
 			-- ---------------- Settings page (theme / menu key / configs) ----------------
 			Window:InitSettings()
 
@@ -8362,16 +8965,9 @@ end
 
 
 -- The demo runs automatically when this file is executed directly. Set
--- getgenv().VITALITY_RUN_EXAMPLE = false before loading for library-only mode.
--- You can also call Library:RunExample() manually after loading.
--- Set getgenv().VITALITY_RUN_GAME_SCRIPT = true before executing this file to
--- run the ported juanitahaxx game script from the docs region instead of the demo.
+-- This file is the library only. Set getgenv().VITALITY_RUN_GAME_SCRIPT = true
+-- before executing it to also run the ported juanitahaxx game script below.
 local _RunVitalityGameScript = getgenv().VITALITY_RUN_GAME_SCRIPT == true
-
-local _RunVitalityExample = getgenv().VITALITY_RUN_EXAMPLE
-if _RunVitalityExample == nil then
-	_RunVitalityExample = true
-end
 
 if _RunVitalityGameScript then
 	local _GameOk, _GameError = pcall(function()
@@ -8382,16 +8978,6 @@ if _RunVitalityGameScript then
 		print('[Vitality] Game script loaded successfully.')
 	else
 		warn('[Vitality] Game script failed: '.. tostring(_GameError))
-	end
-elseif _RunVitalityExample then
-	local _ExampleOk, _ExampleError = pcall(function()
-		Library:RunExample()
-	end)
-
-	if _ExampleOk then
-		print('[Vitality] Example loaded successfully.')
-	else
-		warn('[Vitality] Example failed: '.. tostring(_ExampleError))
 	end
 end
 
